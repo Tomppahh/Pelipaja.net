@@ -1,6 +1,6 @@
 Pelipaja.net is a community 5v5 matchmaking site made as part of my bachelors thesis " Game platform development with focus on user experience - Design and implementation of a competitive gaming platform"
 
-better readme will be updated, this is initial commit
+better readme will be updated, this is initial
 
 ## Getting Started
 
