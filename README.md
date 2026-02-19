@@ -1,4 +1,6 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Pelipaja.net is a community 5v5 matchmaking site made as part of my bachelors thesis " Game platform development with focus on user experience - Design and implementation of a competitive gaming platform"
+
+better readme will be updated, this is initial commit
 
 ## Getting Started
 
