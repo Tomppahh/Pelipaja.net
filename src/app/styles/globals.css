@@ -1,0 +1,18 @@
+@import 'tailwindcss';
+
+@theme {
+	--font-franklin: var(--font-libre-roboto);
+	--font-playfair: var(--font-playfair);
+	--font-roboto: var(--font-roboto);
+}
+
+:root {
+	--background: #0a0a0a;
+	--foreground: #ededed;
+}
+
+body {
+	background: var(--background);
+	color: var(--foreground);
+	font-family: var(--font-sans), sans-serif;
+}
