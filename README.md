@@ -3,8 +3,22 @@ Pelipaja.net is a community 5v5 matchmaking site made as part of my bachelors th
 better readme will be updated, this is initial
 
 ## Getting Started
+Run the docker container:
+Build only:
+docker compose builds
 
-First, run the development server:
+Run (builds if needed):
+docker compose up
+
+Build and run together:
+docker compose up --build
+
+Run in detached mode (background):
+docker compose up -d
+
+
+
+First, run the development server (without docker):
 
 ```bash
 npm run dev

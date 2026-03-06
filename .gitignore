@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files and Cloudflare secrets
 .env*
+.env.local
 cloudflare.env
 cloudflare-*.env
 # Ignore any file containing Cloudflare tokens or secrets
@@ -44,3 +45,13 @@ cloudflare-*.env
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+
+#other stuff
+TODO
+komennot.txt
+audit.json
+
+
+# gameservers folder and its files
+src/gameservers
