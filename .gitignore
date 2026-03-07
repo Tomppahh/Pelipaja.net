@@ -57,3 +57,6 @@ audit.json
 
 # gameservers folder and its files
 src/gameservers
+
+# database
+data/

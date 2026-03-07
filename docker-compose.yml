@@ -43,7 +43,4 @@ services:
     image: mongo:7
     restart: unless-stopped
     volumes:
-      - mongo-data:/data/db
-
-volumes:
-  mongo-data:
+      - ./data/mongodb:/data/db
