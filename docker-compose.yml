@@ -1,10 +1,30 @@
 services:
+  traefik:
+    image: traefik:v3.6
+    container_name: traefik
+    restart: unless-stopped
+    environment:
+      - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
+    ports:
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./letsencrypt:/letsencrypt
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.cfresolver.acme.dnschallenge=true"
+      - "--certificatesresolvers.cfresolver.acme.dnschallenge.provider=cloudflare"
+      - "--certificatesresolvers.cfresolver.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.cfresolver.acme.storage=/letsencrypt/acme.json"
+
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    ports:
-      - '3000:3000'
+    container_name: app
+    restart: unless-stopped
     env_file:
       - .env
     environment:
@@ -12,9 +32,18 @@ services:
       - MONGODB_URI=mongodb://mongodb:27017/pelipaja
     depends_on:
       - mongodb
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app.rule=Host(`pelipaja.net`) || Host(`www.pelipaja.net`)"
+      - "traefik.http.routers.app.entrypoints=websecure"
+      - "traefik.http.routers.app.tls.certresolver=cfresolver"
+      - "traefik.http.services.app.loadbalancer.server.port=3000"
+
   mongodb:
     image: mongo:7
+    restart: unless-stopped
     volumes:
       - mongo-data:/data/db
+
 volumes:
   mongo-data:
