@@ -54,7 +54,7 @@ export default function Header() {
 								href='/'
 								className='hover:text-blue-700 text-slate-900 block font-medium text-[15px]'
 							>
-								testi 2
+								nappi 2
 							</a>
 						</li>
 					</ul>
