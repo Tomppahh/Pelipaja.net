@@ -1,168 +1,121 @@
-import { execSync } from 'child_process';
+import Docker from 'dockerode';
 import * as fs from 'fs';
 import * as path from 'path';
 
+const docker = new Docker({ host: process.env.HOME_PC_WG_IP, port: 2375 });
+
 const VPS_IP = process.env.VPS_IP!;
-const BASE_PORT = parseInt(process.env.CS2_BASE_PORT || '27015');
-const MAX_SERVERS = parseInt(process.env.CS2_MAX_SERVERS || '10');
 const FRP_TOKEN = process.env.FRP_TOKEN!;
 const FRP_SERVER_ADDR = process.env.FRP_SERVER_ADDR!;
 const CS2_RCON_PASS = process.env.CS2_RCON_PASS!;
+const MATCHUP_API_SECRET = process.env.MATCHUP_API_SECRET!;
 
-const BASE_NAME = 'pelipaja.net-cs';
 const INSTANCES_DIR = path.resolve(process.cwd(), 'src/gameservers/instances');
 const TEMPLATE_CFG_DIR = path.resolve(process.cwd(), 'src/gameservers/CS2/cfg');
 
-interface ServerInfo {
-  id: string;
-  name: string;
-  port: number;
-  map: string;
-  ip: string;
-}
+function getNextSlot(gameType: string) {
+  const gameDir = path.join(INSTANCES_DIR, gameType);
+  fs.mkdirSync(gameDir, { recursive: true });
 
-function getActiveServerNumbers(): number[] {
-  if (!fs.existsSync(INSTANCES_DIR)) return [];
-  return fs.readdirSync(INSTANCES_DIR)
-    .filter(name => name.startsWith('cs'))
-    .map(name => parseInt(name.replace('cs', '')))
-    .filter(n => !isNaN(n))
-    .sort();
-}
+  const taken = fs.readdirSync(gameDir)
+    .map(name => parseInt(name.replace(/[^0-9]/g, '')))
+    .filter(n => !isNaN(n));
 
-function getNextSlot(): { number: number; port: number } {
-  const active = getActiveServerNumbers();
-  for (let i = 1; i <= MAX_SERVERS; i++) {
-    if (!active.includes(i)) {
-      return { number: i, port: BASE_PORT + i - 1 };
-    }
-  }
-  throw new Error('Max server limit reached');
-}
-
-function generateFrpcToml(gameId: string, port: number): string {
-  const serverNumber = gameId.replace('cs', '');
-  return `serverAddr = "${FRP_SERVER_ADDR}"
-    serverPort = 7000
-    auth.token = "${FRP_TOKEN}"
-
-    [[proxies]]
-    name = "cs2-${gameId}"
-    type = "udp"
-    localIP = "${BASE_NAME}${serverNumber}"
-    localPort = 27015
-    remotePort = ${port}
-    `;
-}
-
-function generateDockerCompose(gameId: string, map: string): string {
-  const serverNumber = gameId.replace('cs', '');
-  const containerName = `${BASE_NAME}${serverNumber}`;
-  return `services:
-  wireguard-init:
-    image: alpine
-    network_mode: host
-    cap_add:
-      - NET_ADMIN
-    volumes:
-      - /etc/wireguard:/etc/wireguard
-    command: sh -c "apk add --no-cache wireguard-tools && wg-quick up wg0 || true"
-    restart: "no"
-
-  ${containerName}:
-    image: juksuu/cs2:matchup
-    container_name: ${containerName}
-    depends_on:
-      - wireguard-init
-    environment:
-      - HOST_NAME=Pelipaja.net
-      - STARTING_MAP=${map}
-      - GAME_MODE=competitive
-      - RCON_PASS=${CS2_RCON_PASS}
-    volumes:
-      - cs2_cs2-gamefiles:/root/cs2-dedicated
-      - ./cfg:/root/cs2-dedicated/game/csgo/cfg
-
-  frpc-${gameId}:
-    image: snowdreamtech/frpc
-    volumes:
-      - ./frpc.toml:/etc/frp/frpc.toml
-    depends_on:
-      - ${containerName}
-    restart: unless-stopped
-
-volumes:
-  cs2_cs2-gamefiles:
-    external: true
-`;
-}
-
-export async function createServer(map: string = 'de_mirage'): Promise<ServerInfo> {
-  fs.mkdirSync(INSTANCES_DIR, { recursive: true });
-
-  const { number, port } = getNextSlot();
-  const gameId = `cs${number}`;
-  const serverDir = path.join(INSTANCES_DIR, gameId);
-
-  fs.mkdirSync(serverDir, { recursive: true });
-  fs.cpSync(TEMPLATE_CFG_DIR, path.join(serverDir, 'cfg'), { recursive: true });
-  fs.writeFileSync(path.join(serverDir, 'frpc.toml'), generateFrpcToml(gameId, port));
-  fs.writeFileSync(path.join(serverDir, 'docker-compose.yml'), generateDockerCompose(gameId, map));
-
-  execSync('docker compose up -d', { cwd: serverDir, stdio: 'inherit' });
+  let i = 1;
+  while (taken.includes(i)) i++;
 
   return {
-    id: gameId,
-    name: `${BASE_NAME}${number}`,
-    port,
-    map,
-    ip: VPS_IP,
+    number: i,
+    gamePort: 27015 + i - 1,
+    apiPort: 27090 + i - 1,
   };
 }
 
-export async function destroyServer(gameId: string): Promise<void> {
-  const serverDir = path.join(INSTANCES_DIR, gameId);
+function frpcConfig(gameId: string, containerName: string, gamePort: number, apiPort: number) {
+  return `
+serverAddr = "${FRP_SERVER_ADDR}"
+serverPort = 7000
+auth.token = "${FRP_TOKEN}"
 
-  if (!fs.existsSync(serverDir)) {
-    throw new Error(`Server ${gameId} not found`);
-  }
+[[proxies]]
+name = "${gameId}-game"
+type = "udp"
+localIP = "${containerName}"
+localPort = 27015
+remotePort = ${gamePort}
 
-  execSync('docker compose down', { cwd: serverDir, stdio: 'inherit' });
-  fs.rmSync(serverDir, { recursive: true, force: true });
+[[proxies]]
+name = "${gameId}-api"
+type = "tcp"
+localIP = "${containerName}"
+localPort = 27090
+remotePort = ${apiPort}
+  `;
 }
 
-export function listServers(): ServerInfo[] {
-  const active = getActiveServerNumbers();
-  return active.map(n => {
-    const gameId = `cs${n}`;
-    const port = BASE_PORT + n - 1;
-    const composePath = path.join(INSTANCES_DIR, gameId, 'docker-compose.yml');
-    let map = 'unknown';
-    if (fs.existsSync(composePath)) {
-      const content = fs.readFileSync(composePath, 'utf-8');
-      const match = content.match(/STARTING_MAP=(.+)/);
-      if (match) map = match[1].trim();
-    }
-    return {
-      id: gameId,
-      name: `${BASE_NAME}${n}`,
-      port,
-      map,
-      ip: VPS_IP,
-    };
+export async function createServer(gameType: string, map: string, matchId: string) {
+  const { number, gamePort, apiPort } = getNextSlot(gameType);
+  const gameId = `${gameType}${number}`;
+  const containerName = `pelipaja-${gameId}`;
+  const serverDir = path.join(INSTANCES_DIR, gameType, gameId);
+
+  fs.mkdirSync(serverDir, { recursive: true });
+  fs.cpSync(TEMPLATE_CFG_DIR, path.join(serverDir, 'cfg'), { recursive: true });
+  fs.writeFileSync(path.join(serverDir, 'frpc.toml'), frpcConfig(gameId, containerName, gamePort, apiPort));
+
+  const cs2 = await docker.createContainer({
+    Image: 'juksuu/cs2:matchup',
+    name: containerName,
+    Env: [
+      'HOST_NAME=Pelipaja.net',
+      `STARTING_MAP=${map}`,
+      'GAME_MODE=competitive',
+      `RCON_PASS=${CS2_RCON_PASS}`,
+      'MATCHUP_API_PORT=27090',
+      `MATCHUP_API_SECRET=${MATCHUP_API_SECRET}`,
+      `MATCHUP_MATCH_ID=${matchId}`,
+      `MATCHUP_WEBHOOK_URL=${process.env.AUTH_URL}`,
+    ],
+    HostConfig: {
+      Binds: [
+        'cs2_gamefiles:/root/cs2-dedicated',
+        `${serverDir}/cfg:/root/cs2-dedicated/game/csgo/cfg`,
+      ],
+    },
   });
+  await cs2.start();
+
+  const frpc = await docker.createContainer({
+    Image: 'snowdreamtech/frpc',
+    name: `frpc-${gameId}`,
+    HostConfig: {
+      Binds: [`${serverDir}/frpc.toml:/etc/frp/frpc.toml`],
+    },
+  });
+  await frpc.start();
+
+  return {
+    gameId,
+    connectionIp: VPS_IP,
+    connectionPort: gamePort,
+    apiUrl: `http://${VPS_IP}:${apiPort}`,
+  };
 }
 
-export function getServerLogs(gameId: string, lines: number = 50): string {
-  const containerName = `${BASE_NAME}${gameId.replace('cs', '')}`;
-  try {
-    return execSync(`docker logs ${containerName} --tail ${lines} 2>&1`).toString();
-  } catch {
-    return 'Container not found';
+export async function destroyServer(gameType: string, gameId: string) {
+  const serverDir = path.join(INSTANCES_DIR, gameType, gameId);
+
+  for (const name of [`pelipaja-${gameId}`, `frpc-${gameId}`]) {
+    try {
+      const container = docker.getContainer(name);
+      await container.stop();
+      await container.remove();
+    } catch {
+      // already stopped or doesn't exist, ignore
+    }
   }
-}
 
-export function isServerReady(gameId: string): boolean {
-  const logs = getServerLogs(gameId);
-  return logs.includes('Executing warmup cfg');
+  if (fs.existsSync(serverDir)) {
+    fs.rmSync(serverDir, { recursive: true, force: true });
+  }
 }

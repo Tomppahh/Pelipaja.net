@@ -7,7 +7,7 @@ interface Props {
 }
 
 export default function WelcomeUser({ user }: Props) {
-  if (!user) return <a href="/api/auth/steam">Login</a>;
+  if (!user) return <a href="/api/auth/steam" className="text-black">Login</a>;
   return (
    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
   <span className="text-black">Hello {user.displayName}</span>;
