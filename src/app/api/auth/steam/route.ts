@@ -19,8 +19,7 @@ export async function GET() {
           resolve(NextResponse.json({ error: "Steam auth failed" }, { status: 500 }));
           return;
         }
-        // Send user to Steam
-        resolve(NextResponse.redirect(authUrl));
+        resolve(NextResponse.redirect(authUrl, 302));
       }
     );
   });

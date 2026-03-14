@@ -1,0 +1,8 @@
+services:
+  mongodb-dev:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./data/mongodb-dev:/data/db

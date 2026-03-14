@@ -8,5 +8,13 @@ interface Props {
 
 export default function WelcomeUser({ user }: Props) {
   if (!user) return <a href="/api/auth/steam">Login</a>;
-  return <p>Hello {user.displayName}</p>;
+  return (
+   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+  <span className="text-black">Hello {user.displayName}</span>;
+  <img
+    src={user?.avatarUrl}
+    style={{ width: "48px", height: "48px", borderRadius: "50%"}}
+    />
+    </div>
+  );
 }
