@@ -80,7 +80,7 @@ export default function MatchPage() {
         <p>Mode: {match.gameConfig?.mode}</p>
         <div>
           <code>{connectString}</code>
-          <button onClick={() => navigator.clipboard.writeText(connectString)}>
+          <button className="padding-right:20px;" onClick={() => navigator.clipboard.writeText(connectString)}>
             Copy
           </button>
         </div>
