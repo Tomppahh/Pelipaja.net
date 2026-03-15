@@ -41,8 +41,11 @@ export async function POST(req: NextRequest) {
     match.connectionPort = server.connectionPort;
     await match.save();
 
+    console.log(
+      `Match ${match._id} created with map ${gameConfig.map} by user ${user.displayName} on server ${server.gameId}`
+    );
+    
     return NextResponse.json({ matchId: match._id }, { status: 201 });
-
   } catch (err) {
     console.error("Failed to create server:", err);
     match.status = "cancelled";
