@@ -60,3 +60,6 @@ src/gameservers
 
 # database
 data/
+
+# API test routes
+src/app/api/test/
