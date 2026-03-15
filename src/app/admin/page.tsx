@@ -6,7 +6,7 @@ interface Match {
   _id: string;
   gameType?: string;
   status: string;
-  gameConfig: { map: string; mode: string };
+  gameConfig: { map: string; mode?: string; ownerName?: string };
   connectionIp: string;
   connectionPort: number;
   createdAt: string;
@@ -102,6 +102,9 @@ export default function AdminPage() {
                   <p className="text-lg font-semibold text-slate-100">{match.gameConfig.map}</p>
                   <p className="mt-1 text-sm text-slate-300">
                     Server: <span className="font-semibold text-cyan-300">{getServerName(match)}</span>
+                  </p>
+                  <p className="mt-1 text-sm text-slate-300">
+                    Owner: <span className="font-semibold text-cyan-300">{match.gameConfig.ownerName ?? "Unknown"}</span>
                   </p>
                   <p className="mt-1 text-sm text-slate-300">
                     {match.connectionIp}:{match.connectionPort}
