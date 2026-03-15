@@ -4,7 +4,7 @@ export default async function Header() {
 	const user = await getSession();
 
 	return (
-		<header className='flex shadow-md py-4 px-4 sm:px-10 bg-white min-h-[70px] tracking-wide absolute w-full z-50'>
+		<header className='fixed top-0 left-0 z-50 flex min-h-[70px] w-full bg-white px-4 py-4 tracking-wide shadow-md sm:px-10'>
 			<div className='flex flex-wrap items-center justify-between gap-5 w-full'>
 				<a href='/' className='max-sm:hidden'>
 					<h1 className='text-5xl font-bold italic font-franklin text-black'>Pelipaja.net</h1>

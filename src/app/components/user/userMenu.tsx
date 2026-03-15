@@ -30,6 +30,9 @@ export default function UserMenu({ user }: Props) {
 
       {open && (
         <div className="absolute right-0 min-w-[150px] rounded-md border border-gray-300 bg-white py-1 shadow-md">
+          <a href="/" className="block px-4 py-2 text-black hover:bg-gray-100">
+            Home
+          </a>
           {user.role === "admin" && (
             <a href="/admin" className="block px-4 py-2 text-black hover:bg-gray-100">
               Admin Panel
