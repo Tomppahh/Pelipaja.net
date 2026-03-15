@@ -65,7 +65,10 @@ export async function createServer(gameType: string, map: string, matchId: strin
         `MATCHUP_WEBHOOK_URL=${process.env.AUTH_URL}`,
       ],
       HostConfig: {
-        Binds: ['cs2_gamefiles:/root/cs2-dedicated'],
+        Binds: [
+          'cs2_gamefiles:/root/cs2-dedicated',
+          '/home/tommi/titeopinnot/KANDITYÖ/pelipaja.net/src/gameservers/CS2/cfg:/root/cs2-dedicated/game/csgo/cfg',
+        ],
         NetworkMode: networkName,
       },
     });
