@@ -26,7 +26,10 @@ export async function POST(req: NextRequest) {
   // Create match as pending
   const match = await Match.create({
     gameType,
-    gameConfig,
+    gameConfig: {
+      ...gameConfig,
+      ownerName: user.displayName || user.steamId || "Unknown",
+    },
     playersPerTeam,
     status: "pending",
   });
