@@ -10,11 +10,11 @@ export default function WelcomeUser({ user }: Props) {
   if (!user) return <a href="/api/auth/steam" className="text-black">Login</a>;
   return (
    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-  <span className="text-black">Hello {user.displayName}</span>;
-  <img
-    src={user?.avatarUrl}
-    style={{ width: "48px", height: "48px", borderRadius: "50%"}}
-    />
+    <span className="text-black">Hello {user.displayName}</span>;
+    <img src={user?.avatarUrl} style={{ width: "48px", height: "48px", borderRadius: "50%"}}/>
+      <form action="/api/auth/logout" method="POST">
+          <button className="ml-[0px] px-3 py-1 text-black" type="submit">Logout</button>
+        </form>
     </div>
   );
 }
