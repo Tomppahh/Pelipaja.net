@@ -8,10 +8,31 @@ const FRP_SERVER_ADDR = process.env.FRP_SERVER_ADDR!;
 const CS2_RCON_PASS = process.env.CS2_RCON_PASS!;
 const MATCHUP_API_SECRET = process.env.MATCHUP_API_SECRET!;
 
-// In-memory slot tracking — persisted in MongoDB via GameServer model
+// Track active slots in memory
 const activeSlots = new Set<number>();
 
-function getNextSlot() {
+// Restore active slots from running containers on startup
+async function restoreActiveSlots() {
+  try {
+    const containers = await docker.listContainers({ all: false });
+    for (const c of containers) {
+      const name = c.Names[0].replace('/', '');
+      if (name.startsWith('pelipaja-cs')) {
+        const number = parseInt(name.replace(/[^0-9]/g, ''));
+        if (!isNaN(number)) {
+          activeSlots.add(number);
+          console.log(`Restored active slot: ${number}`);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Failed to restore active slots:', err);
+  }
+}
+
+restoreActiveSlots();
+
+function getNextSlot(gameType: string) {
   let i = 1;
   while (activeSlots.has(i)) i++;
   return {
@@ -36,7 +57,7 @@ async function removeNetwork(name: string) {
 }
 
 export async function createServer(gameType: string, map: string, matchId: string) {
-  const { number, gamePort, apiPort } = getNextSlot();
+  const { number, gamePort, apiPort } = getNextSlot(gameType);
   activeSlots.add(number);
 
   const gameId = `${gameType}${number}`;
@@ -65,10 +86,7 @@ export async function createServer(gameType: string, map: string, matchId: strin
         `MATCHUP_WEBHOOK_URL=${process.env.AUTH_URL}`,
       ],
       HostConfig: {
-        Binds: [
-          'cs2_gamefiles:/root/cs2-dedicated',
-          '/home/tommi/titeopinnot/KANDITYÖ/pelipaja.net/src/gameservers/CS2/cfg:/root/cs2-dedicated/game/csgo/cfg',
-        ],
+        Binds: ['cs2_gamefiles:/root/cs2-dedicated'],
         NetworkMode: networkName,
       },
     });
@@ -110,11 +128,9 @@ export async function createServer(gameType: string, map: string, matchId: strin
 
 export async function destroyServer(gameType: string, gameId: string) {
   const number = parseInt(gameId.replace(/[^0-9]/g, ''));
-
   await removeContainer(`pelipaja-${gameId}`);
   await removeContainer(`frpc-${gameId}`);
   await removeNetwork(`net-${gameId}`);
-
   activeSlots.delete(number);
 }
 
