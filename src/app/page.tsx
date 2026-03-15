@@ -1,12 +1,10 @@
 import { getSession } from '../backend/lib/session';
-import Header from './components/layout/header';
 import {ROLES, hasRole} from "@/src/lib/config/settings"
 export default async function Home() {
 	const user = await getSession();
 	const { lobby } = ROLES;
 	return (
 		<>
-			<Header />
 			<main className='flex min-h-screen flex-col items-center justify-center'>
 				<h1 className='text-5xl font-bold italic font-franklin'>Pelipaja.net</h1>
 				

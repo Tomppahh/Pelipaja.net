@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Libre_Franklin, Roboto, Playfair_Display } from 'next/font/google';
 import './styles/globals.css';
+import Header from './components/layout/header';
 
 const libreFranklin = Libre_Franklin({
 	variable: '--font-libre-franklin',
@@ -26,9 +27,10 @@ export default function RootLayout({
 	return (
 		<html lang='fi'>
 			<body
-				className={`${libreFranklin.variable} ${roboto.variable} ${playfair.variable} antialiased`}
+				className={`${libreFranklin.variable} ${roboto.variable} ${playfair.variable} min-h-screen overflow-y-auto antialiased`}
 			>
-				{children}
+				<Header />
+				<main className='min-h-screen pt-[88px]'>{children}</main>
 			</body>
 		</html>
 	);
