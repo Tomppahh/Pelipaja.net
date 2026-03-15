@@ -1,5 +1,5 @@
 import Docker from 'dockerode';
-
+import { log } from "@/src/backend/lib/logger"
 const docker = new Docker({ host: process.env.HOME_PC_WG_IP, port: 2375 });
 
 const VPS_IP = process.env.VPS_IP!;
@@ -88,6 +88,7 @@ export async function createServer(gameType: string, map: string, matchId: strin
       HostConfig: {
         Binds: ['cs2_gamefiles:/root/cs2-dedicated'],
         NetworkMode: networkName,
+        RestartPolicy: { Name: 'unless-stopped' },
       },
     });
     await cs2.start();
@@ -105,9 +106,11 @@ export async function createServer(gameType: string, map: string, matchId: strin
       ],
       HostConfig: {
         NetworkMode: networkName,
+        RestartPolicy: { Name: 'unless-stopped' },
       },
     });
     await frpc.start();
+    log(`Server ${gameId} started on ${map}`);
 
   } catch (err) {
     console.error(`Failed to start server ${gameId}:`, err);
@@ -132,6 +135,7 @@ export async function destroyServer(gameType: string, gameId: string) {
   await removeContainer(`frpc-${gameId}`);
   await removeNetwork(`net-${gameId}`);
   activeSlots.delete(number);
+  log(`Server ${gameId} destroyed`);
 }
 
 export async function destroyAll() {
