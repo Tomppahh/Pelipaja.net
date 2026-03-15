@@ -2,17 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/src/backend/lib/session";
 import Match from "@/src/models/Match";
 import { createServer } from "@/src/backend/services/gameServerService";
-
-const ALLOWED_ROLES = ["leader", "beta", "admin"];
+import { ROLES, hasRole } from "@/src/lib/config/settings";
 
 export async function POST(req: NextRequest) {
   const user = await getSession();
+  const { lobby } = ROLES;
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!ALLOWED_ROLES.includes(user.role)) {
+  if (!hasRole(user.role, lobby)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

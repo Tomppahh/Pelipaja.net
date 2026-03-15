@@ -1,13 +1,13 @@
 import { getSession } from "@/src/backend/lib/session";
 import { redirect } from "next/navigation";
+import { ROLES, hasRole } from "@/src/lib/config/settings";
 
-const ALLOWED_ROLES = ["leader", "beta", "admin"];
 
 export default async function CreateMatchPage() {
   const user = await getSession();
-
+  const { lobby } = ROLES;
   if (!user) redirect("/login");
-  if (!ALLOWED_ROLES.includes(user.role)) redirect("/");
+  if (!hasRole(user.role, lobby)) redirect("/");
 
   return (
     <div>
