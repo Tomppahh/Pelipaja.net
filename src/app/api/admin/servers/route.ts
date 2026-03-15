@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/src/backend/lib/session";
-import { connectDB } from "@/src/backend/lib/db";
 import Match from "@/src/models/Match";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   const user = await getSession();
@@ -9,6 +10,7 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const { connectDB } = await import("@/src/backend/lib/db");
   await connectDB();
   const matches = await Match.find({
     status: { $in: ["pending", "configuring", "live"] }
