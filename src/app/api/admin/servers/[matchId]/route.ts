@@ -21,8 +21,21 @@ export async function DELETE(
   if (!match) return NextResponse.json({ error: "Match not found" }, { status: 404 });
 
   const gameConfig = match.gameConfig as { gameId?: string };
-  const port = match.connectionPort ?? 27015;
-  const gameId = gameConfig.gameId ?? `cs${port - 27014}`;
+
+  let gameId = gameConfig.gameId;
+  if (!gameId) {
+    if (!match.connectionPort) {
+      return NextResponse.json({ error: "Missing connection port; cannot resolve server id" }, { status: 400 });
+    }
+
+    const slot = match.connectionPort - 27014;
+    if (slot < 1) {
+      return NextResponse.json({ error: "Invalid connection port; cannot resolve server id" }, { status: 400 });
+    }
+
+    gameId = `${match.gameType ?? "cs2"}${slot}`;
+  }
+
   const { destroyServer } = await import("@/src/backend/services/gameServerService");
   await destroyServer("cs2", gameId);
 
