@@ -1,5 +1,5 @@
 import { getSession } from "@/src/backend/lib/session"
-import WelcomeUser from '../user/welcomeUser' 
+import UserMenu from "../user/userMenu"; 
 export default async function Header() {
 	const user = await getSession();
 
@@ -9,9 +9,9 @@ export default async function Header() {
 				<a href='/' className='max-sm:hidden'>
 					<h1 className='text-5xl font-bold italic font-franklin text-black'>Pelipaja.net</h1>
 				</a>
-				<WelcomeUser user={user} />	
+				
 			</div>
-			
+			{user ? <UserMenu user={user} /> : <a href="/api/auth/steam">Login</a>}
 		</header>
 	);
 }

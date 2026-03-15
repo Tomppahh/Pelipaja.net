@@ -63,3 +63,4 @@ data/
 
 # API test routes
 src/app/api/test/
+src/app/api/dev/

@@ -1,0 +1,47 @@
+"use client";
+
+import { useState } from "react";
+import { SessionUser } from "@/src/backend/lib/session";
+
+interface Props {
+  user: SessionUser;
+}
+
+export default function UserMenu({ user }: Props) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-3 text-black"
+        type="button"
+      >
+        <img
+          src={user.avatarUrl}
+          alt={user.displayName}
+          width={48}
+          height={48}
+          className="h-12 w-12 rounded-full object-cover"
+        />
+        <span className="text-lg font-semibold leading-none text-black">{user.displayName}</span>
+        <span className="ml-3 text-2xl leading-none text-black">☰</span>
+      </button>
+
+      {open && (
+        <div className="absolute right-0 min-w-[150px] rounded-md border border-gray-300 bg-white py-1 shadow-md">
+          {user.role === "admin" && (
+            <a href="/admin" className="block px-4 py-2 text-black hover:bg-gray-100">
+              Admin Panel
+            </a>
+          )}
+          <form action="/api/auth/logout" method="POST">
+            <button type="submit" className="block w-full px-4 py-2 text-left text-black hover:bg-gray-100">
+              Logout
+            </button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
