@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     console.log(
       `Match ${match._id} created with map ${gameConfig.map} by user ${user.displayName} on server ${server.gameId}`
     );
-    log(`${user.displayName} created server ${gameId} with map ${input.gameConfig.map}`);
+    log(`${user.displayName} created server ${server.gameId} with map ${gameConfig.map}`);
     
     return NextResponse.json({ matchId: match._id }, { status: 201 });
   } catch (err) {
