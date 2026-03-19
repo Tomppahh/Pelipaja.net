@@ -32,6 +32,7 @@ try {
             body: JSON.stringify({
                 mode: 'pelipaja',
                 matchId: match._id.toString(),
+                ownerSteamID: (match.gameConfig as any).ownerSteamID,
                 map: (match.gameConfig as any).map,
                 teamSize: match.playersPerTeam,
                 team1: { name: 'Team 1', players: [] },

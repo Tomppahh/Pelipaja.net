@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
     gameConfig: {
       ...gameConfig,
       ownerName: user.displayName || user.steamId || "Unknown",
+      ownerSteamID: user.steamId,
     },
     playersPerTeam,
     status: "pending",
