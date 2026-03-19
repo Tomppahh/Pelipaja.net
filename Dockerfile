@@ -9,6 +9,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+ENV MONGODB_URI=mongodb://dummy:27017/dummy 
 RUN npm run build
 
 # --- Production ---
