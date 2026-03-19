@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/src/backend/lib/session';
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const user = await getSession();
   if (!user || user.role !== 'admin') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

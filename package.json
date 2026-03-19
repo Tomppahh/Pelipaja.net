@@ -11,13 +11,15 @@
 		"format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,json,md,css,scss,html}\""
 	},
 	"dependencies": {
+		"clsx": "^2.1.1",
 		"dockerode": "^4.0.9",
 		"jose": "^6.2.1",
 		"mongoose": "^9.2.1",
 		"next": "16.1.6",
 		"openid": "^2.0.15",
 		"react": "19.2.3",
-		"react-dom": "19.2.3"
+		"react-dom": "19.2.3",
+		"tailwind-merge": "^3.5.0"
 	},
 	"devDependencies": {
 		"@tailwindcss/postcss": "^4",
