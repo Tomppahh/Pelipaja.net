@@ -37,7 +37,7 @@ export async function DELETE(
   }
 
   const { destroyServer } = await import("@/src/backend/services/gameServerService");
-  await destroyServer("cs2", gameId);
+  await destroyServer(gameId);
 
   match.status = "cancelled";
   await match.save();
