@@ -40,7 +40,9 @@ export async function POST(req: NextRequest) {
     const server = await createServer(gameType, gameConfig.map, match._id.toString());
 
     // Update match with server info
-    match.status = "live";
+    match.status = "configuring";
+    match.gameId = server.gameId;
+    match.apiPort = server.apiPort;
     match.connectionIp = server.connectionIp;
     match.connectionPort = server.connectionPort;
     await match.save();

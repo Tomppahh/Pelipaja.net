@@ -125,11 +125,12 @@ export async function createServer(gameType: string, map: string, matchId: strin
     gameId,
     connectionIp: VPS_IP,
     connectionPort: gamePort,
+    apiPort,
     apiUrl: `http://${VPS_IP}:${apiPort}`,
   };
 }
 
-export async function destroyServer(gameType: string, gameId: string) {
+export async function destroyServer(gameId: string) {
   const number = parseInt(gameId.replace(/[^0-9]/g, ''));
   await removeContainer(`pelipaja-${gameId}`);
   await removeContainer(`frpc-${gameId}`);

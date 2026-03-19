@@ -10,6 +10,8 @@ export type MatchStatus =
 
 export interface IMatch extends Document {
   gameType: GameType;
+  gameId?: string;
+  apiPort?: number;
   gameConfig: Record<string, unknown>;
   playersPerTeam: number;
   status: MatchStatus;
@@ -27,6 +29,12 @@ const MatchSchema = new Schema<IMatch>(
       type: String,
       enum: ["cs2", "dota2"],
       required: true,
+    },
+    gameId: { 
+      type: String,
+    },
+    apiPort: {
+      type: Number
     },
     gameConfig: {
       type: Schema.Types.Mixed,
