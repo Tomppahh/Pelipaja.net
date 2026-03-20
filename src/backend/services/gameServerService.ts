@@ -14,6 +14,17 @@ const activeSlots = new Set<number>();
 // Restore active slots from running containers on startup
 async function restoreActiveSlots() {
   try {
+    // Remove stopped pelipaja containers first
+    const allContainers = await docker.listContainers({ all: true });
+    for (const c of allContainers) {
+      const name = c.Names[0].replace('/', '');
+      if ((name.startsWith('pelipaja-cs') || name.startsWith('frpc-cs')) && c.State !== 'running') {
+        const container = docker.getContainer(c.Id);
+        try { await container.remove({ force: true }); } catch {}
+      }
+    }
+
+    // Then restore active slots from running containers
     const containers = await docker.listContainers({ all: false });
     for (const c of containers) {
       const name = c.Names[0].replace('/', '');
