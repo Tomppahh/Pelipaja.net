@@ -33,7 +33,7 @@ export default function MatchPage() {
         setMatch(data);
         return data.status;
       } catch {
-        setError("Failed to fetch match");
+        
       }
     };
 
@@ -68,12 +68,23 @@ export default function MatchPage() {
       </div>
     );
   }
-
-  if (match.status === "ready" || match.status === "live") {
+if (match.status === "pending" || match.status === "configuring") {
+  return (
+    <div>
+      <h1>Creating Server...</h1>
+      <p>Please wait while your server is being set up. This usually takes about 20 seconds.</p>
+      <p>Map: {match.gameConfig?.map}</p>
+    </div>
+  );
+}
+if (match.status === "ready" || match.status === "live") {
   const connectString = `connect ${match.connectionIp}:${match.connectionPort}`;
   const steamUrl = `steam://connect/${connectString}`;
   return (
     <div>
+      if(match.status === "ready" || match.status === "live"){
+
+      }
       <h1>{"Server ready!"}</h1>
       <p>Map: {match.gameConfig?.map}</p>
       <code>{connectString}</code>
