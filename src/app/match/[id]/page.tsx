@@ -72,7 +72,7 @@ if (match.status === "pending" || match.status === "configuring") {
   return (
     <div>
       <h1>Creating Server...</h1>
-      <p>Please wait while your server is being set up. This usually takes about 20 seconds.</p>
+      <p>Please wait while your server is being set up. This usually takes about a minute.</p>
       <p>Map: {match.gameConfig?.map}</p>
     </div>
   );
