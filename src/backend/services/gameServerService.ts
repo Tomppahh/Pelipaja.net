@@ -124,7 +124,7 @@ export async function createServer(gameType: string, map: string, matchId: strin
         `GAME_ID=${gameId}`,
         `CONTAINER_NAME=${containerName}`,
         `GAME_PORT=${gamePort}`,
-        `API_PORT=${apiPort}`,
+        `MATCHUP_API_PORT=${apiPort}`,
       ],
       HostConfig: {
         NetworkMode: networkName,
