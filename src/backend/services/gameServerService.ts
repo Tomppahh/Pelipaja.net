@@ -83,7 +83,7 @@ export async function createServer(gameType: string, map: string, matchId: strin
         'MATCHUP_API_PORT=27090',
         `MATCHUP_API_SECRET=${MATCHUP_API_SECRET}`,
         `MATCHUP_MATCH_ID=${matchId}`,
-        `MATCHUP_WEBHOOK_URL=${process.env.AUTH_URL}`,
+        `MATCHUP_WEBHOOK_URL=http://10.0.0.1:3000`,
       ],
       HostConfig: {
         Binds: ['cs2_gamefiles:/root/cs2-dedicated'],
@@ -110,7 +110,6 @@ export async function createServer(gameType: string, map: string, matchId: strin
       },
     });
     await frpc.start();
-    log(`Server ${gameId} started on ${map}`);
 
   } catch (err) {
     console.error(`Failed to start server ${gameId}:`, err);
