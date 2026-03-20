@@ -8,13 +8,10 @@ const FRP_SERVER_ADDR = process.env.FRP_SERVER_ADDR!;
 const CS2_RCON_PASS = process.env.CS2_RCON_PASS!;
 const MATCHUP_API_SECRET = process.env.MATCHUP_API_SECRET!;
 
-// Track active slots in memory
 const activeSlots = new Set<number>();
 
-// Restore active slots from running containers on startup
 async function restoreActiveSlots() {
   try {
-    // Remove stopped pelipaja containers first
     const allContainers = await docker.listContainers({ all: true });
     for (const c of allContainers) {
       const name = c.Names[0].replace('/', '');
@@ -24,7 +21,6 @@ async function restoreActiveSlots() {
       }
     }
 
-    // Then restore active slots from running containers
     const containers = await docker.listContainers({ all: false });
     for (const c of containers) {
       const name = c.Names[0].replace('/', '');
@@ -68,7 +64,6 @@ async function removeNetwork(name: string) {
 }
 
 export async function createServer(gameType: string, map: string, matchId: string) {
-    // Pull latest image before creating container
   await new Promise<void>((resolve, reject) => {
     docker.pull('ghcr.io/tomppahh/pelipaja-cs2:latest', (err: any, stream: any) => {
       if (err) return reject(err);
@@ -95,14 +90,17 @@ export async function createServer(gameType: string, map: string, matchId: strin
 
   try {
     const cs2 = await docker.createContainer({
-      Image: 'ghcr.io/tomppahh/pelipaja-cs2:latest', // change to Image: 'juksuu/cs2:matchup', if want to use original
+      Image: 'ghcr.io/tomppahh/pelipaja-cs2:latest',
       name: containerName,
+      ExposedPorts: {
+        '27090/tcp': {},
+      },
       Env: [
         'HOST_NAME=Pelipaja.net',
         `STARTING_MAP=${map}`,
         'GAME_MODE=competitive',
         `RCON_PASS=${CS2_RCON_PASS}`,
-        'MATCHUP_API_PORT=27090',
+        `MATCHUP_API_PORT=${apiPort}`,
         `MATCHUP_API_SECRET=${MATCHUP_API_SECRET}`,
         `MATCHUP_MATCH_ID=${matchId}`,
         `MATCHUP_WEBHOOK_URL=http://10.0.0.1:3000`,
@@ -111,6 +109,9 @@ export async function createServer(gameType: string, map: string, matchId: strin
         Binds: ['cs2_gamefiles:/root/cs2-dedicated'],
         NetworkMode: networkName,
         RestartPolicy: { Name: 'unless-stopped' },
+        PortBindings: {
+          '27090/tcp': [{ HostPort: `${apiPort}` }],
+        },
       },
     });
     await cs2.start();
