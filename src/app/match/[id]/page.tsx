@@ -69,12 +69,12 @@ export default function MatchPage() {
     );
   }
 
-  if (match.status === "configuring" || match.status === "live") {
+  if (match.status === "ready" || match.status === "live") {
   const connectString = `connect ${match.connectionIp}:${match.connectionPort}`;
   const steamUrl = `steam://connect/${connectString}`;
   return (
     <div>
-      <h1>{match.status === "configuring" ? "Server Ready - Waiting for players" : "Match Live!"}</h1>
+      <h1>{"Server ready!"}</h1>
       <p>Map: {match.gameConfig?.map}</p>
       <code>{connectString}</code>
       <button onClick={() => navigator.clipboard.writeText(connectString)}>Copy</button>
