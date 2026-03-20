@@ -110,7 +110,6 @@ export async function createServer(gameType: string, map: string, matchId: strin
       },
     });
     await frpc.start();
-    log(`Server ${gameId} started on ${map}`);
 
   } catch (err) {
     console.error(`Failed to start server ${gameId}:`, err);

@@ -35,7 +35,7 @@ try {
                 ownerSteamID: (match.gameConfig as any).ownerSteamID,
                 map: (match.gameConfig as any).map,
                 teamSize: match.playersPerTeam,
-                team1: { name: 'Team 1', players: [] },
+                team1: { name: 'Team 1', players: ['76561197970226616'] }, // Tomppahh steamid for testing
                 team2: { name: 'Team 2', players: [] }
             })
         });

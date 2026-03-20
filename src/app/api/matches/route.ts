@@ -48,10 +48,7 @@ export async function POST(req: NextRequest) {
     match.connectionPort = server.connectionPort;
     await match.save();
 
-    console.log(
-      `Match ${match._id} created with map ${gameConfig.map} by user ${user.displayName} on server ${server.gameId}`
-    );
-    log(`${user.displayName} created server ${server.gameId} with map ${gameConfig.map}`);
+    log(`${user.displayName} created server ${server.gameId} with map ${gameConfig.map}, Match ID: ${match._id}`);
     
     return NextResponse.json({ matchId: match._id }, { status: 201 });
   } catch (err) {
