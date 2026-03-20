@@ -4,6 +4,7 @@ import { GameType } from "@/src/lib/types/games";
 export type MatchStatus =
   | "pending"
   | "configuring"
+  | "ready"
   | "live"
   | "finished"
   | "cancelled";
@@ -46,7 +47,7 @@ const MatchSchema = new Schema<IMatch>(
     },
     status: {
       type: String,
-      enum: ["pending", "configuring", "live", "finished", "cancelled"],
+      enum: ["pending", "configuring", "ready", "live", "finished", "cancelled"],
       default: "pending",
     },
     winner: {
