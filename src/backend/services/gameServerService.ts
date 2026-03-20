@@ -73,7 +73,7 @@ export async function createServer(gameType: string, map: string, matchId: strin
 
   try {
     const cs2 = await docker.createContainer({
-      Image: 'juksuu/cs2:matchup',
+      Image: 'ghcr.io/tomppahh/pelipaja-cs2:latest', // change to Image: 'juksuu/cs2:matchup', if want to use original
       name: containerName,
       Env: [
         'HOST_NAME=Pelipaja.net',
