@@ -110,8 +110,8 @@ export async function createServer(gameType: string, map: string, matchId: strin
         NetworkMode: networkName,
         RestartPolicy: { Name: 'unless-stopped' },
         PortBindings: {
-          '27090/tcp': [{ HostPort: `${apiPort}` }],
-        },
+        [`${apiPort}/tcp`]: [{ HostPort: `${apiPort}` }],
+      },
       },
     });
     await cs2.start();
