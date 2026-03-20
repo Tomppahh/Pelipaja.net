@@ -57,6 +57,17 @@ async function removeNetwork(name: string) {
 }
 
 export async function createServer(gameType: string, map: string, matchId: string) {
+    // Pull latest image before creating container
+  await new Promise<void>((resolve, reject) => {
+    docker.pull('ghcr.io/tomppahh/pelipaja-cs2:latest', (err: any, stream: any) => {
+      if (err) return reject(err);
+      docker.modem.followProgress(stream, (err: any) => {
+        if (err) return reject(err);
+        resolve();
+      });
+    });
+  });
+
   const { number, gamePort, apiPort } = getNextSlot(gameType);
   activeSlots.add(number);
 
