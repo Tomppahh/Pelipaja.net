@@ -58,7 +58,7 @@ export default function MatchPage() {
     return <p>Match was cancelled.</p>;
   }
 
-  if (match.status === "pending" || match.status === "configuring") {
+  if (match.status === "pending") {
     return (
       <div>
         <h1>Creating Server...</h1>
@@ -69,27 +69,19 @@ export default function MatchPage() {
     );
   }
 
-  if (match.status === "live") {
-    const connectString = `${match.connectionIp}:${match.connectionPort}`;
-    const steamUrl = `steam://connect/${connectString}`;
-
-    return (
-      <div>
-        <h1>Server Ready!</h1>
-        <p>Map: {match.gameConfig?.map}</p>
-        <p>Mode: {match.gameConfig?.mode}</p>
-        <div>
-          <code>{connectString}</code>
-          <button className="padding-right:20px;" onClick={() => navigator.clipboard.writeText(connectString)}>
-            Copy
-          </button>
-        </div>
-        <a href={steamUrl}>
-          <button>Connect via Steam</button>
-        </a>
-      </div>
-    );
-  }
+  if (match.status === "configuring" || match.status === "live") {
+  const connectString = `connect ${match.connectionIp}:${match.connectionPort}`;
+  const steamUrl = `steam://connect/${connectString}`;
+  return (
+    <div>
+      <h1>{match.status === "configuring" ? "Server Ready - Waiting for players" : "Match Live!"}</h1>
+      <p>Map: {match.gameConfig?.map}</p>
+      <code>{connectString}</code>
+      <button onClick={() => navigator.clipboard.writeText(connectString)}>Copy</button>
+      <a href={steamUrl}><button>Connect via Steam</button></a>
+    </div>
+  );
+}
 
   return null;
 }
