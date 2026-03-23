@@ -1,5 +1,6 @@
 import Docker from 'dockerode';
 import { log } from "@/src/backend/lib/logger"
+import { connectDB } from "@/src/backend/lib/db";
 const docker = new Docker({ host: process.env.HOME_PC_WG_IP, port: 2375 });
 
 const VPS_IP = process.env.VPS_IP!;
@@ -22,14 +23,27 @@ async function restoreActiveSlots() {
     }
 
     const containers = await docker.listContainers({ all: false });
+    const runningGameIds = new Set<string>();
     for (const c of containers) {
       const name = c.Names[0].replace('/', '');
       if (name.startsWith('pelipaja-cs')) {
         const number = parseInt(name.replace(/[^0-9]/g, ''));
         if (!isNaN(number)) {
           activeSlots.add(number);
+          runningGameIds.add(name.replace('pelipaja-', ''));
           console.log(`Restored active slot: ${number}`);
         }
+      }
+    }
+
+    await connectDB();
+    const Match = (await import('@/src/models/Match')).default;
+    const activeMatches = await Match.find({ status: { $in: ['configuring', 'ready', 'live'] } });
+    for (const match of activeMatches) {
+      if (match.gameId && !runningGameIds.has(match.gameId)) {
+        console.log(`Cancelling orphaned match ${match._id} (${match.gameId} not running)`);
+        match.status = 'cancelled';
+        await match.save();
       }
     }
   } catch (err) {
