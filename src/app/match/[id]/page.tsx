@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { Button } from "@/src/app/components/ui/button";
+import { Card } from "@/src/app/components/ui/card";
+import { Muted, PageTitle } from "@/src/app/components/ui/typography";
 
 interface MatchData {
   status: string;
@@ -51,45 +54,73 @@ export default function MatchPage() {
     return () => clearInterval(interval);
   }, [id]);
 
-  if (error) return <p style={{ color: "red" }}>{error}</p>;
-  if (!match) return <p>Loading...</p>;
-
-  if (match.status === "cancelled") {
-    return <p>Match was cancelled.</p>;
-  }
-
-  if (match.status === "pending") {
+  if (error) {
     return (
-      <div>
-        <h1>Creating Server...</h1>
-        <p>Please wait while your server is being set up.</p>
-        <p>Map: {match.gameConfig?.map}</p>
-        <p>Mode: {match.gameConfig?.mode}</p>
-      </div>
+      <main className="mx-auto flex min-h-[calc(100vh-88px)] w-full max-w-2xl items-center justify-center px-4 py-8 sm:px-6">
+        <Card className="w-full border-[var(--danger)]/35 bg-[var(--danger)]/10">
+          <p className="text-sm font-medium text-[var(--danger)]">{error}</p>
+        </Card>
+      </main>
     );
   }
-if (match.status === "pending" || match.status === "configuring") {
-  return (
-    <div>
-      <h1>Creating Server...</h1>
-      <p>Please wait while your server is being set up. This usually takes about a minute.</p>
-      <p>Map: {match.gameConfig?.map}</p>
-    </div>
-  );
-}
-if (match.status === "ready" || match.status === "live") {
-  const connectString = `connect ${match.connectionIp}:${match.connectionPort}`;
-  const steamUrl = `steam://connect/${connectString}`;
-  return (
-    <div>
-      <h1>{"Server ready!"}</h1>
-      <p>Map: {match.gameConfig?.map}</p>
-      <code>{connectString}</code>
-      <button onClick={() => navigator.clipboard.writeText(connectString)}>Copy</button>
-      <a href={steamUrl}><button>Connect via Steam</button></a>
-    </div>
-  );
-}
+
+  if (!match) {
+    return (
+      <main className="mx-auto flex min-h-[calc(100vh-88px)] w-full max-w-2xl items-center justify-center px-4 py-8 sm:px-6">
+        <Card className="w-full">
+          <Muted>Loading...</Muted>
+        </Card>
+      </main>
+    );
+  }
+
+  if (match.status === "cancelled") {
+    return (
+      <main className="mx-auto flex min-h-[calc(100vh-88px)] w-full max-w-2xl items-center justify-center px-4 py-8 sm:px-6">
+        <Card className="w-full">
+          <PageTitle className="text-2xl">Match Cancelled</PageTitle>
+          <Muted className="mt-2">This match was cancelled before the server became playable.</Muted>
+        </Card>
+      </main>
+    );
+  }
+
+  if (match.status === "pending" || match.status === "configuring") {
+    return (
+      <main className="mx-auto flex min-h-[calc(100vh-88px)] w-full max-w-2xl items-center justify-center px-4 py-8 sm:px-6">
+        <Card className="w-full">
+          <PageTitle className="text-2xl">Creating Server...</PageTitle>
+          <Muted className="mt-2">Please wait while your server is being set up. This usually takes about a minute.</Muted>
+          <p className="mt-4 text-sm text-[var(--foreground)]">Map: <span className="font-semibold text-[var(--accent)]">{match.gameConfig?.map}</span></p>
+        </Card>
+      </main>
+    );
+  }
+
+  if (match.status === "ready" || match.status === "live") {
+    const connectString = `connect ${match.connectionIp}:${match.connectionPort}`;
+    const steamUrl = `steam://connect/${connectString}`;
+
+    return (
+      <main className="mx-auto flex min-h-[calc(100vh-88px)] w-full max-w-2xl items-center justify-center px-4 py-8 sm:px-6">
+        <Card className="w-full">
+          <PageTitle className="text-2xl">Server Ready!</PageTitle>
+          <p className="mt-3 text-sm text-[var(--foreground)]">Map: <span className="font-semibold text-[var(--accent)]">{match.gameConfig?.map}</span></p>
+          <code className="mt-4 block rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)]">
+            {connectString}
+          </code>
+          <div className="mt-4 flex items-center gap-3">
+            <Button variant="secondary" onClick={() => navigator.clipboard.writeText(connectString)}>
+              Copy
+            </Button>
+            <a href={steamUrl}>
+              <Button>Connect via Steam</Button>
+            </a>
+          </div>
+        </Card>
+      </main>
+    );
+  }
 
   return null;
 }
