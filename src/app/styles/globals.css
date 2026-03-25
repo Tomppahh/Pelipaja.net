@@ -1,19 +1,24 @@
 @import 'tailwindcss';
 
-@theme {
-    --font-franklin: var(--font-libre-roboto);
-    --font-playfair: var(--font-playfair);
-    --font-roboto: var(--font-roboto);
-}
-
 :root {
-    --background: #0a0a0a;
-    --surface: #111827;
-    --surface-hover: #1f2937;
-    --foreground: #ededed;
-    --muted: #cbd5e1;
-    --accent: #22d3ee;
-    --border: #334155;
+    /* Theme tokens: edit these values to retheme app-wide */
+
+    --background: #0B0A1F;
+    --surface: #16132E;
+    --surface-hover: #221B45;
+    --foreground: #F7F5FF;
+    --muted: #B9B3D9;
+    --border: #3A2F66;
+
+    --accent: #2DE2E6;
+    --accent-contrast: #071317;
+
+    --accent-2: #FF3864;
+    --accent-3: #7B61FF;
+
+    --success: #A7F432;
+    --warning: #FF9F1C;
+    --danger: #FF3864;
 }
 
 * {
@@ -21,10 +26,21 @@
 }
 
 body {
+    --font-display: var(--font-poppins);
+    --font-body: var(--font-inter);
+
     background: var(--background);
     color: var(--foreground);
-    font-family: var(--font-sans), sans-serif;
+    font-family: var(--font-body), sans-serif;
     line-height: 1.5;
+}
+
+.font-display {
+    font-family: var(--font-display), sans-serif;
+}
+
+.font-body {
+    font-family: var(--font-body), sans-serif;
 }
 
 a {
@@ -33,28 +49,14 @@ a {
 
 /* Scoped to main — header is untouched */
 main h1, main h2, main h3, main h4, main h5, main h6 {
+    font-family: var(--font-display), sans-serif;
     line-height: 1.2;
     margin: 0 0 0.5rem;
-    text-align: center;
 }
 
 main p {
-    margin: 0.5rem auto;
-    max-width: 70ch;
-    text-align: center;
+    margin: 0.5rem 0;
     color: var(--muted);
-}
-
-main section {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-}
-
-main form {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
 }
 
 main input,
@@ -78,13 +80,17 @@ main input[type='checkbox'] {
 }
 
 main label {
+    font-size: 0.9rem;
+    color: var(--muted);
+    padding: 0.25rem 0;
+}
+
+main label:has(input[type='radio']),
+main label:has(input[type='checkbox']) {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     cursor: pointer;
-    font-size: 0.9rem;
-    color: var(--muted);
-    padding: 0.25rem 0;
 }
 
 main label:has(input[type='radio']:checked),

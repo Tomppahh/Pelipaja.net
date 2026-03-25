@@ -9,10 +9,12 @@ const FRP_SERVER_ADDR = process.env.FRP_SERVER_ADDR!;
 const CS2_RCON_PASS = process.env.CS2_RCON_PASS!;
 const MATCHUP_API_SECRET = process.env.MATCHUP_API_SECRET!;
 
-const activeSlots = new Set<number>();
+const activeGameIds = new Set<string>();
 
 async function restoreActiveSlots() {
   try {
+    activeGameIds.clear();
+
     const allContainers = await docker.listContainers({ all: true });
     for (const c of allContainers) {
       const name = c.Names[0].replace('/', '');
@@ -27,12 +29,10 @@ async function restoreActiveSlots() {
     for (const c of containers) {
       const name = c.Names[0].replace('/', '');
       if (name.startsWith('pelipaja-cs')) {
-        const number = parseInt(name.replace(/[^0-9]/g, ''));
-        if (!isNaN(number)) {
-          activeSlots.add(number);
-          runningGameIds.add(name.replace('pelipaja-', ''));
-          console.log(`Restored active slot: ${number}`);
-        }
+        const gameId = name.replace('pelipaja-', '');
+        activeGameIds.add(gameId);
+        runningGameIds.add(gameId);
+        console.log(`Restored active server: ${gameId}`);
       }
     }
 
@@ -55,12 +55,35 @@ restoreActiveSlots();
 
 function getNextSlot(gameType: string) {
   let i = 1;
-  while (activeSlots.has(i)) i++;
+  while (activeGameIds.has(`${gameType}${i}`)) i++;
+
   return {
     number: i,
     gamePort: 27015 + i - 1,
     apiPort: 27090 + i - 1,
   };
+}
+
+async function syncActiveGameIdsFromDocker() {
+  const containers = await docker.listContainers({ all: true });
+  const networks = await docker.listNetworks();
+  activeGameIds.clear();
+
+  for (const c of containers) {
+    const name = c.Names[0].replace('/', '');
+    if (name.startsWith('pelipaja-cs')) {
+      activeGameIds.add(name.replace('pelipaja-', ''));
+    }
+    if (name.startsWith('frpc-cs')) {
+      activeGameIds.add(name.replace('frpc-', ''));
+    }
+  }
+
+  for (const n of networks) {
+    if (n.Name.startsWith('net-cs')) {
+      activeGameIds.add(n.Name.replace('net-', ''));
+    }
+  }
 }
 
 async function removeContainer(name: string) {
@@ -78,6 +101,8 @@ async function removeNetwork(name: string) {
 }
 
 export async function createServer(gameType: string, map: string, matchId: string) {
+  await syncActiveGameIdsFromDocker();
+
   await new Promise<void>((resolve, reject) => {
     docker.pull('ghcr.io/tomppahh/pelipaja-cs2:latest', (err: any, stream: any) => {
       if (err) return reject(err);
@@ -89,9 +114,9 @@ export async function createServer(gameType: string, map: string, matchId: strin
   });
 
   const { number, gamePort, apiPort } = getNextSlot(gameType);
-  activeSlots.add(number);
-
   const gameId = `${gameType}${number}`;
+  activeGameIds.add(gameId);
+
   const containerName = `pelipaja-${gameId}`;
   const frpcName = `frpc-${gameId}`;
   const networkName = `net-${gameId}`;
@@ -153,7 +178,7 @@ export async function createServer(gameType: string, map: string, matchId: strin
     await removeContainer(containerName);
     await removeContainer(frpcName);
     await network.remove();
-    activeSlots.delete(number);
+    activeGameIds.delete(gameId);
     throw err;
   }
 
@@ -167,11 +192,10 @@ export async function createServer(gameType: string, map: string, matchId: strin
 }
 
 export async function destroyServer(gameId: string) {
-  const number = parseInt(gameId.replace(/[^0-9]/g, ''));
   await removeContainer(`pelipaja-${gameId}`);
   await removeContainer(`frpc-${gameId}`);
   await removeNetwork(`net-${gameId}`);
-  activeSlots.delete(number);
+  activeGameIds.delete(gameId);
   log(`Server ${gameId} destroyed`);
 }
 
@@ -194,5 +218,5 @@ export async function destroyAll() {
     }
   }
 
-  activeSlots.clear();
+  activeGameIds.clear();
 }

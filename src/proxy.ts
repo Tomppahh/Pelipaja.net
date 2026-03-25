@@ -10,5 +10,5 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = { // add protected route folders here so only admins can run these routes!
-  matcher: ['/api/admin/:path*', '/api/test']
+  matcher: ['/api/admin/:path*', '/api/test:path*']
 };
