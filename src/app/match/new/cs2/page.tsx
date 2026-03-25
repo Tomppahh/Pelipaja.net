@@ -59,21 +59,32 @@ export default function CreateCS2MatchPage() {
     <div>
       <h1>Create CS2 Match</h1>
 
-      <div>
-        <h2>Game Mode</h2>
-        {CS2_MODES.map(mode => (
-          <button
-            key={mode.id}
-            onClick={() => handleModeChange(mode.id)}
-            style={{ fontWeight: selectedMode.id === mode.id ? "bold" : "normal" }}
-          >
-            {mode.label}
-          </button>
-        ))}
+      <div className="flex flex-col gap-2">
+        <h2 className="pt-3 text-[var(--muted)]">Game Mode</h2>
+
+        <div className="flex flex-wrap gap-2">
+          {CS2_MODES.map((mode) => {
+            const isSelected = selectedMode.id === mode.id;
+
+            return (
+              <button
+                key={mode.id}
+                onClick={() => handleModeChange(mode.id)}
+                className={`rounded-lg border px-4 py-2 text-sm font-semibold transition
+                  ${isSelected
+                    ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+                    : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
+                  }`}
+              >
+                {mode.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div>
-        <h2>Team Size</h2>
+        <h2 className="pt-3 text-[var(--muted)]">Team Size</h2>
         <input
           type="number"
           min={1}
@@ -85,21 +96,35 @@ export default function CreateCS2MatchPage() {
       </div>
 
       <div>
-        <h2>Map</h2>
-        {CS2_MAPS.map(map => (
-          <button
-            key={map}
-            onClick={() => setSelectedMap(map)}
-            style={{ fontWeight: selectedMap === map ? "bold" : "normal" }}
-          >
-            {map}
-          </button>
-        ))}
+        <h2 className="pt-3 text-[var(--muted)]">Map</h2>
+        <div className="flex flex-wrap gap-2">
+          {CS2_MAPS.map((map) => {
+            const isSelectedMap = selectedMap === map;
+
+            return (
+              <button
+                key={map}
+                onClick={() => setSelectedMap(map)}
+                className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
+                  isSelectedMap
+                    ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+                    : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
+                }`}
+              >
+                {map}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {error && <p style={{ color: "red" }}>{error}</p>}
 
-      <button onClick={handleSubmit} disabled={loading}>
+      <button
+        onClick={handleSubmit}
+        disabled={loading}
+        className="mt-5 rounded-lg border border-[var(--accent-2)] bg-[var(--accent-2)] px-5 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+      >
         {loading ? "Creating..." : "Create Match"}
       </button>
     </div>
