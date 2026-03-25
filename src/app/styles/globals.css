@@ -27,7 +27,7 @@
 
 body {
     --font-display: var(--font-poppins);
-    --font-body: var(--font-inter);
+    --font-body: var(--font-poppins);
 
     background: var(--background);
     color: var(--foreground);
