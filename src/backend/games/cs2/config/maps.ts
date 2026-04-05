@@ -4,8 +4,8 @@ export const CS2_MAPS = [
   "de_inferno",
   "de_nuke",
   "de_ancient",
-  "de_anubis",
-  "de_train",
+  "de_anubis", 
+  "de_overpass", 
 ];
 
 // ```
