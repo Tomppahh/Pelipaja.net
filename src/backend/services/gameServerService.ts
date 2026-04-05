@@ -103,6 +103,10 @@ async function removeNetwork(name: string) {
 export async function createServer(gameType: string, map: string, matchId: string) {
   await syncActiveGameIdsFromDocker();
 
+  if (activeGameIds.size >= 10) {
+    throw new Error('Maximum number of servers reached');
+  }
+
   await new Promise<void>((resolve, reject) => {
     docker.pull('ghcr.io/tomppahh/pelipaja-cs2:latest', (err: any, stream: any) => {
       if (err) return reject(err);
@@ -188,6 +192,14 @@ export async function createServer(gameType: string, map: string, matchId: strin
     connectionPort: gamePort,
     apiPort,
     apiUrl: `http://${VPS_IP}:${apiPort}`,
+  };
+}
+
+export async function getServerStatus() {
+  await syncActiveGameIdsFromDocker();
+  return {
+    active: activeGameIds.size,
+    max: 10,
   };
 }
 
