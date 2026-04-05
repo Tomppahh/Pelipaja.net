@@ -199,7 +199,7 @@ export async function getServerStatus() {
   await syncActiveGameIdsFromDocker();
   return {
     active: activeGameIds.size,
-    max: 10,
+    max: 3,
   };
 }
 
