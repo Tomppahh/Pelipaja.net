@@ -1,6 +1,15 @@
 import Docker from 'dockerode';
 import { log } from "@/src/backend/lib/logger"
 import { connectDB } from "@/src/backend/lib/db";
+
+
+function getMaxServers(): number {
+  const maxFromEnv = process.env.CS2_MAX_SERVERS ? parseInt(process.env.CS2_MAX_SERVERS, 10) : 5;
+  console.log('Max servers from env:', maxFromEnv);
+  return maxFromEnv;
+}
+
+
 const docker = new Docker({ host: process.env.HOME_PC_WG_IP, port: 2375 });
 
 const VPS_IP = process.env.VPS_IP!;
@@ -199,7 +208,7 @@ export async function getServerStatus() {
   await syncActiveGameIdsFromDocker();
   return {
     active: activeGameIds.size,
-    max: 3,
+    max: getMaxServers(),
   };
 }
 
