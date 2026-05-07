@@ -33,6 +33,7 @@ yarn-error.log*
 # env files and Cloudflare secrets
 .env*
 .env.local
+.env.*.local
 letsencrypt/
 traefik/certs/
 cloudflare.env
