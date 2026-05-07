@@ -36,7 +36,7 @@ async function restoreActiveSlots() {
     const allContainers = await docker.listContainers({ all: true });
     for (const c of allContainers) {
       const name = getContainerName(c);
-      if (!name) continue; // ✅ guard against undefined Names[0]
+      if (!name) continue; 
 
       if ((name.startsWith('pelipaja-cs') || name.startsWith('frpc-cs')) && c.State !== 'running') {
         const container = docker.getContainer(c.Id);
@@ -96,22 +96,36 @@ async function syncActiveGameIdsFromDocker() {
   const networks = await docker.listNetworks();
   activeGameIds.clear();
 
+  const runningGameIds = new Set<string>();
+  const runningNetworkNames = new Set<string>();
+
   for (const c of containers) {
     const name = getContainerName(c);
     if (!name) continue; // ✅ guard
 
-    if (name.startsWith('pelipaja-cs')) {
-      activeGameIds.add(name.replace('pelipaja-', ''));
+    if (name.startsWith('pelipaja-cs') && c.State === 'running') {
+      const gameId = name.replace('pelipaja-', '');
+      activeGameIds.add(gameId);
+      runningGameIds.add(gameId);
+      runningNetworkNames.add(`net-${gameId}`);
+      continue;
     }
-    if (name.startsWith('frpc-cs')) {
-      activeGameIds.add(name.replace('frpc-', ''));
+
+    if ((name.startsWith('pelipaja-cs') || name.startsWith('frpc-cs')) && c.State !== 'running') {
+      const container = docker.getContainer(c.Id);
+      try { await container.remove({ force: true }); } catch {}
     }
   }
 
   for (const n of networks) {
-    if (n.Name.startsWith('net-cs')) {
-      activeGameIds.add(n.Name.replace('net-', ''));
+    if (!n.Name.startsWith('net-cs')) continue;
+
+    if (runningNetworkNames.has(n.Name)) {
+      continue;
     }
+
+    const network = docker.getNetwork(n.Id);
+    try { await network.remove(); } catch {}
   }
 }
 
