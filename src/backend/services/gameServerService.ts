@@ -15,7 +15,6 @@ function getMaxServers(): number {
   }
 }
 
-
 const docker = new Docker({ host: process.env.HOME_PC_WG_IP, port: 2375 });
 
 const VPS_IP = process.env.VPS_IP!;
@@ -26,13 +25,19 @@ const MATCHUP_API_SECRET = process.env.MATCHUP_API_SECRET!;
 
 const activeGameIds = new Set<string>();
 
+function getContainerName(c: Docker.ContainerInfo): string | null {
+  return c.Names?.[0]?.replace('/', '') ?? null;
+}
+
 async function restoreActiveSlots() {
   try {
     activeGameIds.clear();
 
     const allContainers = await docker.listContainers({ all: true });
     for (const c of allContainers) {
-      const name = c.Names[0].replace('/', '');
+      const name = getContainerName(c);
+      if (!name) continue; // ✅ guard against undefined Names[0]
+
       if ((name.startsWith('pelipaja-cs') || name.startsWith('frpc-cs')) && c.State !== 'running') {
         const container = docker.getContainer(c.Id);
         try { await container.remove({ force: true }); } catch {}
@@ -42,7 +47,9 @@ async function restoreActiveSlots() {
     const containers = await docker.listContainers({ all: false });
     const runningGameIds = new Set<string>();
     for (const c of containers) {
-      const name = c.Names[0].replace('/', '');
+      const name = getContainerName(c);
+      if (!name) continue; // ✅ guard
+
       if (name.startsWith('pelipaja-cs')) {
         const gameId = name.replace('pelipaja-', '');
         activeGameIds.add(gameId);
@@ -61,8 +68,13 @@ async function restoreActiveSlots() {
         await match.save();
       }
     }
-  } catch (err) {
-    console.error('Failed to restore active slots:', err);
+  } catch (err: any) {
+  
+    if (err?.code === 'ECONNREFUSED' || err?.code === 'EHOSTUNREACH') {
+      console.warn('Docker host unreachable on startup — skipping slot restore. Check WireGuard tunnel.');
+    } else {
+      console.error('Failed to restore active slots:', err);
+    }
   }
 }
 
@@ -85,7 +97,9 @@ async function syncActiveGameIdsFromDocker() {
   activeGameIds.clear();
 
   for (const c of containers) {
-    const name = c.Names[0].replace('/', '');
+    const name = getContainerName(c);
+    if (!name) continue; // ✅ guard
+
     if (name.startsWith('pelipaja-cs')) {
       activeGameIds.add(name.replace('pelipaja-', ''));
     }
@@ -116,7 +130,15 @@ async function removeNetwork(name: string) {
 }
 
 export async function createServer(gameType: string, map: string, matchId: string) {
-  await syncActiveGameIdsFromDocker();
+  
+  try {
+    await syncActiveGameIdsFromDocker();
+  } catch (err: any) {
+    if (err?.code === 'ECONNREFUSED' || err?.code === 'EHOSTUNREACH') {
+      throw new Error('Cannot reach Docker host. Check that the WireGuard tunnel to your home PC is up.');
+    }
+    throw err;
+  }
 
   if (activeGameIds.size >= 10) {
     throw new Error('Maximum number of servers reached');
@@ -168,8 +190,8 @@ export async function createServer(gameType: string, map: string, matchId: strin
         NetworkMode: networkName,
         RestartPolicy: { Name: 'unless-stopped' },
         PortBindings: {
-        [`${apiPort}/tcp`]: [{ HostPort: `${apiPort}` }],
-      },
+          [`${apiPort}/tcp`]: [{ HostPort: `${apiPort}` }],
+        },
       },
     });
     await cs2.start();
@@ -211,7 +233,14 @@ export async function createServer(gameType: string, map: string, matchId: strin
 }
 
 export async function getServerStatus() {
-  await syncActiveGameIdsFromDocker();
+  try {
+    await syncActiveGameIdsFromDocker();
+  } catch (err: any) {
+    if (err?.code === 'ECONNREFUSED' || err?.code === 'EHOSTUNREACH') {
+      return { active: 0, max: getMaxServers(), error: 'Docker host unreachable' };
+    }
+    throw err;
+  }
   return {
     active: activeGameIds.size,
     max: getMaxServers(),
@@ -229,7 +258,9 @@ export async function destroyServer(gameId: string) {
 export async function destroyAll() {
   const containers = await docker.listContainers({ all: true });
   for (const c of containers) {
-    const name = c.Names[0].replace('/', '');
+    const name = getContainerName(c);
+    if (!name) continue; // ✅ guard
+
     if (name.startsWith('pelipaja-') || name.startsWith('frpc-')) {
       const container = docker.getContainer(c.Id);
       try { await container.stop(); } catch {}
