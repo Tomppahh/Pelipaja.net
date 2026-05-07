@@ -1,12 +1,18 @@
 import Docker from 'dockerode';
 import { log } from "@/src/backend/lib/logger"
 import { connectDB } from "@/src/backend/lib/db";
-
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 function getMaxServers(): number {
-  const maxFromEnv = process.env.CS2_MAX_SERVERS ? parseInt(process.env.CS2_MAX_SERVERS, 10) : 5;
-  console.log('Max servers from env:', maxFromEnv);
-  return maxFromEnv;
+  try {
+    const settingsPath = join(process.cwd(), 'settings.ini');
+    const content = readFileSync(settingsPath, 'utf-8');
+    const match = content.match(/CS2_MAX_SERVERS\s*=\s*(\d+)/);
+    return match ? parseInt(match[1], 10) : 3;
+  } catch {
+    return 3;
+  }
 }
 
 
