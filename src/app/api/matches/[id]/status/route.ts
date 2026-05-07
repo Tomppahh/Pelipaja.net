@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Match from "@/src/models/Match";
 import { destroyServer } from "@/src/backend/services/gameServerService";
 import { connectDB } from "@/src/backend/lib/db";
+const VALID_STATUSES = ["pending", "configuring", "ready", "live", "finished", "cancelled"];
 
 export async function POST(
     req: NextRequest,
@@ -15,6 +16,9 @@ export async function POST(
     const secret = auth.replace('Bearer ', '');
     if (secret !== process.env.MATCHUP_API_SECRET) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!VALID_STATUSES.includes(status)) {
+    return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
     const match = await Match.findByIdAndUpdate(id, { status }, { new: true });
 
