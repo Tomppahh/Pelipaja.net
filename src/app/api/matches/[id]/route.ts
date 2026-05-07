@@ -16,8 +16,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json(match);
   }
 
-  // Everyone else gets a sanitized view — no sensitive infrastructure details
+  // Everyone else gets a sanitized view — include connection info and whether
+  // the current user is the owner so the UI can show owner actions.
   const { gameType, gameConfig, playersPerTeam, status, gameId, connectionIp, connectionPort } = match;
+  const isOwner = user?.steamId && (gameConfig as any)?.ownerSteamID === user.steamId;
+  const isAdmin = user?.role === 'admin';
+
   return NextResponse.json({
     gameType,
     playersPerTeam,
@@ -27,6 +31,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     mode: gameConfig?.mode,
     connectionIp,
     connectionPort,
+    isOwner,
+    isAdmin,
     // apiPort, ownerSteamID intentionally omitted
   });
 }
