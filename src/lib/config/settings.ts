@@ -1,5 +1,5 @@
 export const ROLES = {
-  lobby: ["leader", "beta", "moderator", "admin"],
+  lobby: ["user", "leader", "beta", "moderator", "admin"],
   admin: ["admin"],
   moderator: ["moderator", "admin"],
 }
