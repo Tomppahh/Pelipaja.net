@@ -14,6 +14,8 @@ interface MatchData {
     map: string;
     mode: string;
   };
+  isOwner?: boolean;
+  isAdmin?: boolean;
 }
 
 export default function MatchPage() {
@@ -116,6 +118,21 @@ export default function MatchPage() {
             <a href={steamUrl}>
               <Button>Connect via Steam</Button>
             </a>
+            {(match.isOwner || match.isAdmin) && (
+              <Button className="ml-2 bg-red-600 text-white" onClick={async () => {
+                if (!confirm('Cancel this match and stop the server?')) return;
+                try {
+                  const res = await fetch(`/api/matches/${id}/cancel`, { method: 'POST' });
+                  if (res.ok) {
+                    setMatch(prev => prev ? { ...prev, status: 'cancelled' } : prev);
+                  } else {
+                    alert('Failed to cancel');
+                  }
+                } catch (err) {
+                  alert('Failed to cancel');
+                }
+              }}>Cancel Match</Button>
+            )}
           </div>
         </Card>
       </main>
