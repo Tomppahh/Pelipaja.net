@@ -16,8 +16,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json(match);
   }
 
-  // Everyone else gets a sanitized view — no server infrastructure details
-  const { gameType, gameConfig, playersPerTeam, status, gameId } = match;
+  // Everyone else gets a sanitized view — no sensitive infrastructure details
+  const { gameType, gameConfig, playersPerTeam, status, gameId, connectionIp, connectionPort } = match;
   return NextResponse.json({
     gameType,
     playersPerTeam,
@@ -25,6 +25,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     gameId,
     map: gameConfig?.map,
     mode: gameConfig?.mode,
-    // connectionIp, connectionPort, apiPort, ownerSteamID intentionally omitted
+    connectionIp,
+    connectionPort,
+    // apiPort, ownerSteamID intentionally omitted
   });
 }
