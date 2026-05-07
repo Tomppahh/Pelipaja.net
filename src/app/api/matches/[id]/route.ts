@@ -1,16 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSession } from "@/src/backend/lib/session";
 import Match from "@/src/models/Match";
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const user = await getSession();
   const match = await Match.findById(id);
 
   if (!match) {
-    return NextResponse.json({ error: "Match not found" }, { status: 404 });
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  return NextResponse.json(match);
+  // Admins get the full document
+  if (user?.role === "admin") {
+    return NextResponse.json(match);
+  }
+
+  // Everyone else gets a sanitized view — no server infrastructure details
+  const { gameType, gameConfig, playersPerTeam, status, gameId } = match;
+  return NextResponse.json({
+    gameType,
+    playersPerTeam,
+    status,
+    gameId,
+    map: gameConfig?.map,
+    mode: gameConfig?.mode,
+    // connectionIp, connectionPort, apiPort, ownerSteamID intentionally omitted
+  });
 }
