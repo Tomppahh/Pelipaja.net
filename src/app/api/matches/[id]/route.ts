@@ -11,17 +11,19 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Admins get the full document
-  if (user?.role === "admin") {
-    return NextResponse.json(match);
-  }
-
-  // Everyone else gets a sanitized view — include connection info and whether
-  // the current user is the owner so the UI can show owner actions.
+  // Determine ownership/admin status for the current session
   const { gameType, gameConfig, playersPerTeam, status, gameId, connectionIp, connectionPort } = match;
   const isOwner = user?.steamId && (gameConfig as any)?.ownerSteamID === user.steamId;
   const isAdmin = user?.role === 'admin';
 
+ 
+  if (isAdmin) {
+    const full = (typeof (match as any).toObject === 'function') ? (match as any).toObject() : { ...match };
+    return NextResponse.json({ ...full, isOwner, isAdmin });
+  }
+
+  // Non-admins get a sanitized view — include connection info and whether the
+  // current user is the owner so the UI can show owner actions.
   return NextResponse.json({
     gameType,
     playersPerTeam,
