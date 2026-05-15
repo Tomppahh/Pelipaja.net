@@ -27,14 +27,27 @@ function isPrivileged(lobby: ILobby, user: SessionUser) {
 async function join({ lobby, user, matchId }: ActionContext): Promise<NextResponse> {
   const alreadyIn = lobby.players.some(p => p.steamId === user.steamId);
   if (!alreadyIn) {
-    lobby.players.push({
+    const newPlayer: LobbyPlayer = {
       steamId: user.steamId,
       displayName: user.displayName ?? user.steamId,
       avatarUrl: user.avatarUrl,
       team: "none",
       isCaptain: false,
       isReady: false,
-    });
+    };
+
+    // Assign default captains: first available team without a captain
+    const hasTeam1Captain = lobby.players.some(p => p.isCaptain && p.team === "team1");
+    const hasTeam2Captain = lobby.players.some(p => p.isCaptain && p.team === "team2");
+    if (!hasTeam1Captain) {
+      newPlayer.team = "team1";
+      newPlayer.isCaptain = true;
+    } else if (!hasTeam2Captain) {
+      newPlayer.team = "team2";
+      newPlayer.isCaptain = true;
+    }
+
+    lobby.players.push(newPlayer);
     await lobby.save();
     broadcastLobbyUpdate(matchId, lobby.toObject());
   }
@@ -59,18 +72,74 @@ async function leaveTeam({ lobby, user, matchId }: ActionContext): Promise<NextR
   const player = lobby.players.find(p => p.steamId === user.steamId);
   if (!player) return error("Not in lobby", 403);
 
+  const origTeam = player.team;
   player.team = "none";
   player.isCaptain = false;
+
+  // Ensure the original team still has a captain
+  if (origTeam === "team1" || origTeam === "team2") {
+    const hasCaptain = lobby.players.some(p => p.isCaptain && p.team === origTeam);
+    if (!hasCaptain) {
+      const candidate = lobby.players.find(p => p.team === origTeam);
+      if (candidate) candidate.isCaptain = true;
+    }
+  }
+
   await lobby.save();
   broadcastLobbyUpdate(matchId, lobby.toObject());
   return NextResponse.json(lobby);
 }
 
 async function leaveLobby({ lobby, user, matchId }: ActionContext): Promise<NextResponse> {
+  const wasLeader = lobby.leaderId === user.steamId;
   lobby.players = lobby.players.filter(p => p.steamId !== user.steamId);
+
+  // Ensure both teams have captains
+  ["team1", "team2"].forEach((team) => {
+    const hasCaptain = lobby.players.some(p => p.isCaptain && p.team === team);
+    if (!hasCaptain) {
+      const candidate = lobby.players.find(p => p.team === team);
+      if (candidate) candidate.isCaptain = true;
+    }
+  });
+
   await lobby.save();
   broadcastLobbyUpdate(matchId, lobby.toObject());
+
+  // If the leaving player was the leader and no players remain, close the lobby
+  if (wasLeader && lobby.players.length === 0) {
+    await Lobby.deleteOne({ matchId });
+    broadcastLobbyUpdate(matchId, { closed: true });
+    return NextResponse.json({ success: true, closed: true });
+  }
+
   return NextResponse.json({ success: true });
+}
+
+async function kickPlayer({ lobby, user, body, matchId }: ActionContext): Promise<NextResponse> {
+  if (!isPrivileged(lobby, user)) return error("Forbidden", 403);
+
+  const targetSteamId = body.targetSteamId as string;
+  if (!targetSteamId) return error("Missing targetSteamId", 400);
+  if (targetSteamId === lobby.leaderId) return error("Cannot kick the lobby leader", 400);
+
+  const idx = lobby.players.findIndex(p => p.steamId === targetSteamId);
+  if (idx === -1) return error("Player not found", 404);
+
+  const removed = lobby.players.splice(idx, 1)[0];
+
+  // Ensure each team still has a captain: if a captain was removed, try to assign a new one
+  ["team1", "team2"].forEach((team) => {
+    const hasCaptain = lobby.players.some(p => p.isCaptain && p.team === team);
+    if (!hasCaptain) {
+      const candidate = lobby.players.find(p => p.team === team);
+      if (candidate) candidate.isCaptain = true;
+    }
+  });
+
+  await lobby.save();
+  broadcastLobbyUpdate(matchId, { ...lobby.toObject(), kicked: removed.steamId });
+  return NextResponse.json({ success: true, kicked: removed.steamId });
 }
 
 async function leaveLobbyAndClose({ lobby, user, matchId }: ActionContext): Promise<NextResponse> {
@@ -97,6 +166,15 @@ async function leaveLobbyAndPromote({ lobby, user, matchId }: ActionContext): Pr
   const newLeader = candidates[Math.floor(Math.random() * candidates.length)];
   lobby.leaderId = newLeader.steamId;
   lobby.players = lobby.players.filter(p => p.steamId !== user.steamId);
+
+  // Ensure both teams have captains after promoting
+  ["team1", "team2"].forEach((team) => {
+    const hasCaptain = lobby.players.some(p => p.isCaptain && p.team === team);
+    if (!hasCaptain) {
+      const candidate = lobby.players.find(p => p.team === team);
+      if (candidate) candidate.isCaptain = true;
+    }
+  });
 
   await lobby.save();
   broadcastLobbyUpdate(matchId, { ...lobby.toObject(), newLeaderId: newLeader.steamId });
@@ -362,5 +440,6 @@ export const lobbyActions: Record<string, ActionHandler> = {
   start_ready_check: startReadyCheck,
   captain_pick: captainPick,
   captain_pick_complete: captainPickComplete,
+  kick_player: kickPlayer,
   map_veto: mapVeto,
 };
