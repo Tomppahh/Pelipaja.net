@@ -1,4 +1,4 @@
-// Lobby modes for create match UI
+// Lobby modes for in-lobby settings
 "use client";
 const LOBBY_MODES = [
   { id: "use_current_teams", label: "Use Current Teams" },
@@ -28,6 +28,7 @@ interface MatchData {
   mode?: string;
   isOwner?: boolean;
   isAdmin?: boolean;
+  canCancel?: boolean;
 }
 
 interface LobbyPlayer {
@@ -84,6 +85,7 @@ export default function LobbyPage() {
   const [myRole, setMyRole] = useState<string | null>(null);
   const [error, setError] = useState("");
   const joinedRef = useRef(false);
+  const lastLobbyEventRef = useRef(Date.now());
 
   // Lobby settings state
   const [settingsMode, setSettingsMode] = useState<LobbyMode>("use_current_teams");
@@ -128,15 +130,36 @@ export default function LobbyPage() {
   // SSE — live lobby state
   useEffect(() => {
     const es = new EventSource(`/api/matches/${id}/lobby/events`);
+
+    const markAlive = () => {
+      lastLobbyEventRef.current = Date.now();
+      setError(current => (current === "Lost connection to lobby. Refresh to reconnect." ? "" : current));
+    };
+
+    const staleTimer = window.setInterval(() => {
+      if (Date.now() - lastLobbyEventRef.current > 10 * 60 * 1000) {
+        setError("Lost connection to lobby. Refresh to reconnect.");
+        es.close();
+        window.clearInterval(staleTimer);
+      }
+    }, 30000);
+
     es.onmessage = (e) => {
       try {
+        markAlive();
         const data = JSON.parse(e.data);
+        if (data.heartbeat) return;
         if (data.closed) { setError("This lobby has been closed."); es.close(); return; }
         setLobby(data);
       } catch { /* malformed frame */ }
     };
-    es.onerror = () => { setError("Lost connection to lobby. Refresh to reconnect."); es.close(); };
-    return () => es.close();
+    es.onerror = () => {
+      // Allow EventSource to reconnect; the stale timer handles persistent loss.
+    };
+    return () => {
+      window.clearInterval(staleTimer);
+      es.close();
+    };
   }, [id]);
 
   // Match state — server start / ready state
@@ -189,8 +212,10 @@ export default function LobbyPage() {
     me?.isCaptain &&
     me.team === lobby.mapVetoState.currentTurn;
 
+  const leader = lobby?.players.find(p => p.steamId === lobby.leaderId);
+
   const canEditLobbySettings = lobby?.phase === "waiting" && (isLeader || isAdmin);
-  const canCancelMatch = !!match && (match.isOwner || match.isAdmin);
+  const canCancelMatch = !!match && (lobby ? (isLeader || isAdmin) : !!match.canCancel);
   const cancelLabel = match?.status === "ready" || match?.status === "live"
     ? "Close Server"
     : "Cancel Match";
@@ -258,6 +283,10 @@ export default function LobbyPage() {
       : "leave_lobby";
     await action(actionName);
     router.push("/match");
+  }
+
+  async function transferLeader(targetSteamId: string) {
+    await action("transfer_leader", { targetSteamId });
   }
 
   async function devForceReady() {
@@ -341,6 +370,9 @@ export default function LobbyPage() {
         <div>
           <PageTitle>{MODE_LABEL[lobby.settings.mode] ?? lobby.settings.mode}</PageTitle>
           <Muted className="mt-1">{PHASE_LABEL[lobby.phase]}</Muted>
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            Lobby leader: <span className="font-semibold text-[var(--foreground)]">{leader?.displayName ?? lobby.leaderId}</span>
+          </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
           {(lobby.phase === "waiting" || lobby.phase === "ready_check") && me && !me.isReady && (
@@ -494,6 +526,8 @@ export default function LobbyPage() {
           onSetCaptain={(steamId) => action("set_captain", { targetSteamId: steamId })}
           isAdmin={isAdmin}
           onKick={(steamId) => action("kick_player", { targetSteamId: steamId })}
+          leaderId={lobby.leaderId}
+          onTransferLeader={transferLeader}
           onCaptainPick={(steamId) => action("captain_pick", { pickedSteamId: steamId })}
         />
 
@@ -517,6 +551,9 @@ export default function LobbyPage() {
                   onSetCaptain={() => {}}
                   showKickToggle={isLeader || isAdmin}
                   onKick={() => action("kick_player", { targetSteamId: p.steamId })}
+                  leaderId={lobby.leaderId}
+                  showLeaderAction={isLeader || isAdmin}
+                  onTransferLeader={() => transferLeader(p.steamId)}
                 />
               ))
           }
@@ -538,6 +575,8 @@ export default function LobbyPage() {
           onSetCaptain={(steamId) => action("set_captain", { targetSteamId: steamId })}
           isAdmin={isAdmin}
           onKick={(steamId) => action("kick_player", { targetSteamId: steamId })}
+          leaderId={lobby.leaderId}
+          onTransferLeader={transferLeader}
           onCaptainPick={(steamId) => action("captain_pick", { pickedSteamId: steamId })}
         />
       </div>
@@ -565,6 +604,7 @@ function TeamPanel({
   label, team, players, teamSize, mySteamId, isLeader, isAdmin,
   phase, myTeam, isMyCaptainTurn,
   onJoin, onLeaveTeam, onSetCaptain, onKick, onCaptainPick,
+  leaderId, onTransferLeader,
 }: {
   label: string;
   team: Team;
@@ -581,8 +621,10 @@ function TeamPanel({
   onSetCaptain: (steamId: string) => void;
   onKick: (steamId: string) => void;
   onCaptainPick: (steamId: string) => void;
+  leaderId: string;
+  onTransferLeader: (steamId: string) => void;
 }) {
-  const canJoin = phase === "waiting" && myTeam !== team;
+  const canJoin = phase === "waiting" && myTeam !== team && players.length < teamSize;
   const amOnThisTeam = myTeam === team;
 
   return (
@@ -592,18 +634,25 @@ function TeamPanel({
         <span className="text-xs text-[var(--muted)]">{players.length}/{teamSize}</span>
       </div>
 
+      {isLeader || isAdmin ? (
+        <p className="text-[11px] text-[var(--muted)]">Use the captain button on a player to reassign that team’s captain.</p>
+      ) : null}
+
       {players.map(p => (
         <PlayerRow
           key={p.steamId}
           player={p}
           isMe={p.steamId === mySteamId}
           isLeader={isLeader}
-          showCaptainToggle={isLeader && phase === "waiting"}
+          showCaptainToggle={phase === "waiting" && (isLeader || isAdmin)}
           pickable={false}
           onPick={() => {}}
           onSetCaptain={() => onSetCaptain(p.steamId)}
           showKickToggle={isLeader || isAdmin}
           onKick={() => onKick(p.steamId)}
+          leaderId={leaderId}
+          showLeaderAction={(isLeader || isAdmin) && p.steamId !== leaderId}
+          onTransferLeader={() => onTransferLeader(p.steamId)}
           extraAction={
             p.steamId === mySteamId && amOnThisTeam && phase === "waiting"
               ? { label: "Leave team", onClick: onLeaveTeam }
@@ -634,6 +683,7 @@ function TeamPanel({
 
 function PlayerRow({
   player, isMe, isLeader, showCaptainToggle, pickable, onPick, onSetCaptain, extraAction, showKickToggle, onKick,
+  leaderId, showLeaderAction, onTransferLeader,
 }: {
   player: LobbyPlayer;
   isMe: boolean;
@@ -645,6 +695,9 @@ function PlayerRow({
   extraAction?: { label: string; onClick: () => void };
   showKickToggle?: boolean;
   onKick?: () => void;
+  leaderId: string;
+  showLeaderAction?: boolean;
+  onTransferLeader?: () => void;
 }) {
   return (
     <div className={`group flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition ${
@@ -662,6 +715,9 @@ function PlayerRow({
         {player.isCaptain && (
           <span className="text-xs font-normal text-[var(--accent)]">Captain</span>
         )}
+        {player.steamId === leaderId && (
+          <span className="text-xs font-normal text-[var(--foreground)]/70">Leader</span>
+        )}
       </span>
 
       <div className="flex shrink-0 items-center gap-1.5">
@@ -671,14 +727,20 @@ function PlayerRow({
         </span>
 
         {/* Leader: assign captain */}
-        {showCaptainToggle && (
+        {showCaptainToggle && !player.isCaptain && (
           <button
             onClick={onSetCaptain}
-            title={player.isCaptain ? "Remove captain" : "Make captain"}
-            className="rounded px-1.5 py-0.5 text-xs text-[var(--muted)] opacity-0 transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] group-hover:opacity-100"
+            title="Make captain"
+            className="rounded-full border border-[var(--accent)] px-2 py-0.5 text-xs font-semibold text-[var(--accent)] transition hover:bg-[var(--accent)] hover:text-[var(--accent-contrast)]"
           >
-            {player.isCaptain ? "★" : "☆"}
+            Make captain
           </button>
+        )}
+
+        {showCaptainToggle && player.isCaptain && (
+          <span className="rounded-full border border-[var(--accent)]/40 px-2 py-0.5 text-xs font-semibold text-[var(--accent)]">
+            Captain
+          </span>
         )}
 
         {/* Kick player (leader/admin) */}
@@ -686,9 +748,19 @@ function PlayerRow({
           <button
             onClick={onKick}
             title="Kick player"
-            className="rounded px-1.5 py-0.5 text-xs text-[var(--muted)] opacity-0 transition hover:bg-[var(--danger)]/10 hover:text-[var(--danger)] group-hover:opacity-100"
+            className="rounded px-1.5 py-0.5 text-xs text-[var(--muted)] transition hover:bg-[var(--danger)]/10 hover:text-[var(--danger)]"
           >
             Kick
+          </button>
+        )}
+
+        {showLeaderAction && onTransferLeader && player.steamId !== leaderId && (
+          <button
+            onClick={onTransferLeader}
+            title="Give lobby leader"
+            className="rounded px-1.5 py-0.5 text-xs text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+          >
+            Give leader
           </button>
         )}
 
@@ -706,7 +778,7 @@ function PlayerRow({
         {extraAction && (
           <button
             onClick={extraAction.onClick}
-            className="rounded px-1.5 py-0.5 text-xs text-[var(--muted)] opacity-0 transition hover:bg-[var(--danger)]/10 hover:text-[var(--danger)] group-hover:opacity-100"
+            className="rounded px-1.5 py-0.5 text-xs text-[var(--muted)] transition hover:bg-[var(--danger)]/10 hover:text-[var(--danger)]"
           >
             {extraAction.label}
           </button>

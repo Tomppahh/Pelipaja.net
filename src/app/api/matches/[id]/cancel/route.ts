@@ -16,11 +16,14 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const match = await Match.findById(id);
   if (!match) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
+  const lobby = await Lobby.findOne({ matchId: id });
+
   const ownerSteamId = (match.gameConfig as any)?.ownerSteamID;
   const isOwner = user.steamId && ownerSteamId === user.steamId;
   const isAdmin = user.role === 'admin';
+  const isLeader = lobby?.leaderId === user.steamId;
 
-  if (!isOwner && !isAdmin) {
+  if (!(isAdmin || isLeader || (!lobby && isOwner))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -32,7 +35,6 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       try { await destroyServer(match.gameId); } catch (err) { console.error('Failed to destroy server on cancel:', err); }
     }
 
-    const lobby = await Lobby.findOne({ matchId: id });
     if (lobby) {
       await Lobby.deleteOne({ matchId: id });
       broadcastLobbyUpdate(id, { closed: true });

@@ -16,6 +16,7 @@ interface MatchData {
   };
   isOwner?: boolean;
   isAdmin?: boolean;
+  canCancel?: boolean;
 }
 
 export default function MatchPage() {
@@ -117,7 +118,7 @@ export default function MatchPage() {
             <a href={steamUrl}>
               <Button>Connect via Steam</Button>
             </a>
-            {(match.isOwner || match.isAdmin) && (
+            {match.canCancel && (
               <Button
                 className="ml-2 bg-red-600 text-white"
                 onClick={async () => {

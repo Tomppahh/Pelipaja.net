@@ -7,6 +7,7 @@ import {
   startMapVeto,
   finalizeLobbyAndStartServer,
   scheduleBotVeto,
+  validateLobbyCanStart,
 } from "./phases";
 import { ActionContext, SessionUser } from "./types";
 
@@ -62,7 +63,25 @@ async function joinTeam({ lobby, user, body, matchId }: ActionContext): Promise<
   const teamSize = lobby.players.filter(p => p.team === team).length;
   if (teamSize >= lobby.settings.teamSize) return error("Team is full", 400);
 
+  const previousTeam = player.team;
+  const wasCaptain = player.isCaptain;
+
   player.team = team as LobbyPlayer["team"];
+  player.isCaptain = false;
+
+  if (previousTeam === "team1" || previousTeam === "team2") {
+    const previousTeamHasCaptain = lobby.players.some(p => p.isCaptain && p.team === previousTeam);
+    if (!previousTeamHasCaptain) {
+      const replacement = lobby.players.find(p => p.team === previousTeam && p.steamId !== player.steamId);
+      if (replacement) replacement.isCaptain = true;
+    }
+  }
+
+  const targetTeamHasCaptain = lobby.players.some(p => p.isCaptain && p.team === team);
+  if (!targetTeamHasCaptain && (wasCaptain || !lobby.players.some(p => p.team === team && p.isCaptain))) {
+    player.isCaptain = true;
+  }
+
   await lobby.save();
   broadcastLobbyUpdate(matchId, lobby.toObject());
   return NextResponse.json(lobby);
@@ -193,7 +212,8 @@ async function ready({ lobby, user, matchId }: ActionContext): Promise<NextRespo
     .every(p => p.isReady);
 
   if (allReady) {
-    await handleAllReady(lobby, matchId);
+    const blocker = await handleAllReady(lobby, matchId);
+    if (blocker) return error(blocker, 400);
   } else {
     broadcastLobbyUpdate(matchId, lobby.toObject());
   }
@@ -292,6 +312,21 @@ async function setCaptain({ lobby, user, body, matchId }: ActionContext): Promis
   return NextResponse.json(lobby);
 }
 
+async function transferLeader({ lobby, user, body, matchId }: ActionContext): Promise<NextResponse> {
+  if (!isPrivileged(lobby, user)) return error("Forbidden", 403);
+
+  const targetSteamId = body.targetSteamId as string;
+  if (!targetSteamId) return error("Missing targetSteamId", 400);
+
+  const target = lobby.players.find(p => p.steamId === targetSteamId);
+  if (!target) return error("Player not found", 404);
+
+  lobby.leaderId = targetSteamId;
+  await lobby.save();
+  broadcastLobbyUpdate(matchId, { ...lobby.toObject(), newLeaderId: targetSteamId });
+  return NextResponse.json({ success: true, newLeader: target.displayName });
+}
+
 async function updateSettings({ lobby, user, body, matchId }: ActionContext): Promise<NextResponse> {
   if (!isPrivileged(lobby, user)) return error("Forbidden", 403);
 
@@ -303,6 +338,9 @@ async function updateSettings({ lobby, user, body, matchId }: ActionContext): Pr
 
 async function startReadyCheck({ lobby, user, matchId }: ActionContext): Promise<NextResponse> {
   if (!isPrivileged(lobby, user)) return error("Forbidden", 403);
+
+  const blocker = validateLobbyCanStart(lobby);
+  if (blocker) return error(blocker, 400);
 
   const team1 = lobby.players.filter(p => p.team === "team1");
   const team2 = lobby.players.filter(p => p.team === "team2");
@@ -386,6 +424,9 @@ async function captainPickComplete({ lobby, user, matchId }: ActionContext): Pro
   if (!isPrivileged(lobby, user)) return error("Forbidden", 403);
   if (lobby.phase !== "captain_pick") return error("Not in pick phase", 400);
 
+  const blocker = validateLobbyCanStart(lobby);
+  if (blocker) return error(blocker, 400);
+
   const unassigned = lobby.players.filter(p => p.team === "none");
   const team1Count = lobby.players.filter(p => p.team === "team1").length;
   const team2Count = lobby.players.filter(p => p.team === "team2").length;
@@ -436,6 +477,7 @@ export const lobbyActions: Record<string, ActionHandler> = {
   fill_bots: fillBots,
   clear_bots: clearBots,
   set_captain: setCaptain,
+  transfer_leader: transferLeader,
   update_settings: updateSettings,
   start_ready_check: startReadyCheck,
   captain_pick: captainPick,
