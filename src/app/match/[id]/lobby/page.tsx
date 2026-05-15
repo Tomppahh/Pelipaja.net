@@ -144,6 +144,46 @@ export default function LobbyPage() {
     };
   }, [id]);
 
+  // ── Derived ───────────────────────────────────────────────────────────────
+
+  const me       = lobby?.players.find(p => p.steamId === mySteamId);
+  const isLeader = lobby?.leaderId === mySteamId;
+  const isAdmin  = myRole === "admin";
+  const team1    = lobby?.players.filter(p => p.team === "team1") ?? [];
+  const team2    = lobby?.players.filter(p => p.team === "team2") ?? [];
+  const unassigned = lobby?.players.filter(p => p.team === "none") ?? [];
+  const isServerReady = match?.status === "ready" || match?.status === "live";
+  const connectString = match?.connectionIp && match?.connectionPort
+    ? `connect ${match.connectionIp}:${match.connectionPort}`
+    : null;
+  const readyMap = match?.map ?? lobby?.mapVetoState?.remainingMaps?.[0] ?? lobby?.settings.mapPool?.[0];
+
+  const isMyCaptainTurn =
+    lobby?.phase === "captain_pick" &&
+    lobby.captainPickState?.currentTurn &&
+    me?.isCaptain &&
+    me.team === lobby.captainPickState.currentTurn;
+
+  const isMyVetoTurn =
+    lobby?.phase === "map_veto" &&
+    lobby.mapVetoState?.currentTurn &&
+    me?.isCaptain &&
+    me.team === lobby.mapVetoState.currentTurn;
+
+  // Auto-advance captain pick when teams are full and no unassigned players remain
+  useEffect(() => {
+    if (
+      lobby?.phase === "captain_pick" &&
+      isLeader &&
+      unassigned.length === 0 &&
+      team1.length >= (lobby?.settings.teamSize ?? Infinity) &&
+      team2.length >= (lobby?.settings.teamSize ?? Infinity)
+    ) {
+      action("captain_pick_complete");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lobby?.phase, unassigned.length, team1.length, team2.length]);
+
   // ── Actions ───────────────────────────────────────────────────────────────
 
   async function action(name: string, extra?: Record<string, unknown>) {
@@ -173,32 +213,6 @@ export default function LobbyPage() {
     if (res.ok) router.push(`/match/${id}`);
     else setError("Dev force-ready failed");
   }
-
-  // ── Derived ───────────────────────────────────────────────────────────────
-
-  const me       = lobby?.players.find(p => p.steamId === mySteamId);
-  const isLeader = lobby?.leaderId === mySteamId;
-  const isAdmin  = myRole === "admin";
-  const team1    = lobby?.players.filter(p => p.team === "team1") ?? [];
-  const team2    = lobby?.players.filter(p => p.team === "team2") ?? [];
-  const unassigned = lobby?.players.filter(p => p.team === "none") ?? [];
-  const isServerReady = match?.status === "ready" || match?.status === "live";
-  const connectString = match?.connectionIp && match?.connectionPort
-    ? `connect ${match.connectionIp}:${match.connectionPort}`
-    : null;
-  const readyMap = match?.map ?? lobby?.mapVetoState?.remainingMaps?.[0] ?? lobby?.settings.mapPool?.[0];
-
-  const isMyCaptainTurn =
-    lobby?.phase === "captain_pick" &&
-    lobby.captainPickState?.currentTurn &&
-    me?.isCaptain &&
-    me.team === lobby.captainPickState.currentTurn;
-
-  const isMyVetoTurn =
-    lobby?.phase === "map_veto" &&
-    lobby.mapVetoState?.currentTurn &&
-    me?.isCaptain &&
-    me.team === lobby.mapVetoState.currentTurn;
 
   // ── Loading / error ───────────────────────────────────────────────────────
 
@@ -245,7 +259,7 @@ export default function LobbyPage() {
         </div>
       </div>
 
-      {match && !isServerReady && (match.status === "pending" || match.status === "configuring") && (
+      {match && !isServerReady && lobby.phase === "starting" && (match.status === "pending" || match.status === "configuring") && (
         <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
           <PageTitle className="text-xl">Creating Server...</PageTitle>
           <Muted className="mt-1">Please wait while the server starts.</Muted>
@@ -536,7 +550,7 @@ function PlayerRow({
         </span>
 
         {/* Leader: assign captain */}
-        {showCaptainToggle  && (
+        {showCaptainToggle && (
           <button
             onClick={onSetCaptain}
             title={player.isCaptain ? "Remove captain" : "Make captain"}
