@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
   if (user.role !== "admin") {
     const existing = await Match.findOne({
       "gameConfig.ownerSteamID": user.steamId,
-      status: { $in: ["pending", "configuring", "ready", "live"] },
+      status: { $in: ["configuring", "ready", "live"] },
     });
     if (existing) {
       return NextResponse.json(
