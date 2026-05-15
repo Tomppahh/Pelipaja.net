@@ -26,6 +26,8 @@ interface MatchData {
   connectionPort?: number;
   map?: string;
   mode?: string;
+  isOwner?: boolean;
+  isAdmin?: boolean;
 }
 
 interface LobbyPlayer {
@@ -83,33 +85,16 @@ export default function LobbyPage() {
   const [error, setError] = useState("");
   const joinedRef = useRef(false);
 
-  // Create Match UI state
-  const [lobbyMode, setLobbyMode] = useState<LobbyMode>("use_current_teams");
-  const [teamSize, setTeamSize] = useState(5);
-  const [createLoading, setCreateLoading] = useState(false);
-  const [createError, setCreateError] = useState("");
+  // Lobby settings state
+  const [settingsMode, setSettingsMode] = useState<LobbyMode>("use_current_teams");
+  const [settingsTeamSize, setSettingsTeamSize] = useState(5);
+  const [settingsSaving, setSettingsSaving] = useState(false);
 
-  async function createMatch() {
-    setCreateLoading(true);
-    setCreateError("");
-    try {
-      const res = await fetch("/api/matches", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gameType: "cs2", lobbyMode, teamSize }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setCreateError(data.error ?? "Something went wrong");
-        return;
-      }
-      router.push(`/match/${data.matchId}/lobby`);
-    } catch {
-      setCreateError("Failed to create match");
-    } finally {
-      setCreateLoading(false);
-    }
-  }
+  useEffect(() => {
+    if (!lobby) return;
+    setSettingsMode(lobby.settings.mode as LobbyMode);
+    setSettingsTeamSize(lobby.settings.teamSize);
+  }, [lobby?.settings.mode, lobby?.settings.teamSize]);
 
   // Join once on mount
   useEffect(() => {
@@ -204,6 +189,12 @@ export default function LobbyPage() {
     me?.isCaptain &&
     me.team === lobby.mapVetoState.currentTurn;
 
+  const canEditLobbySettings = lobby?.phase === "waiting" && (isLeader || isAdmin);
+  const canCancelMatch = !!match && (match.isOwner || match.isAdmin);
+  const cancelLabel = match?.status === "ready" || match?.status === "live"
+    ? "Close Server"
+    : "Cancel Match";
+
   // Auto-advance captain pick when teams are full and no unassigned players remain
   useEffect(() => {
     if (
@@ -230,6 +221,33 @@ export default function LobbyPage() {
       const data = await res.json().catch(() => ({}));
       setError(data.error ?? "Something went wrong");
     }
+  }
+
+  async function saveLobbySettings() {
+    setSettingsSaving(true);
+    try {
+      await action("update_settings", {
+        settings: {
+          mode: settingsMode,
+          teamSize: settingsTeamSize,
+        },
+      });
+    } finally {
+      setSettingsSaving(false);
+    }
+  }
+
+  async function cancelMatch() {
+    if (!confirm("Cancel this match and close the server?")) return;
+
+    const res = await fetch(`/api/matches/${id}/cancel`, { method: "POST" });
+    if (res.ok) {
+      router.push("/");
+      return;
+    }
+
+    const data = await res.json().catch(() => ({}));
+    setError(data.error ?? "Failed to cancel match");
   }
 
   async function leaveLobby() {
@@ -266,23 +284,23 @@ export default function LobbyPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  // Show create match UI only for leader, phase waiting
-  const showCreateMatch = lobby && lobby.leaderId === mySteamId && lobby.phase === "waiting";
-
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
 
-      {showCreateMatch && (
+      {canEditLobbySettings && (
         <section className="mb-8 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 p-8 shadow-2xl backdrop-blur">
-          <h2 className="font-display text-2xl font-bold tracking-tight text-[var(--foreground)] mb-2">Create Match</h2>
-          <div className="mb-4"><span className="text-sm text-[var(--muted)]">Lobby mode</span></div>
-          <div className="flex flex-wrap gap-2 mb-4">
+          <h2 className="mb-2 font-display text-2xl font-bold tracking-tight text-[var(--foreground)]">Lobby Settings</h2>
+          <p className="text-sm text-[var(--muted)]">Update the lobby before starting the ready check.</p>
+
+          <div className="mt-6">
+            <p className="mb-2 text-sm text-[var(--muted)]">Lobby mode</p>
+            <div className="flex flex-wrap gap-2">
             {LOBBY_MODES.map((mode) => (
               <button
                 key={mode.id}
-                onClick={() => setLobbyMode(mode.id)}
+                onClick={() => setSettingsMode(mode.id)}
                 className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
-                  lobbyMode === mode.id
+                  settingsMode === mode.id
                     ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
                     : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
                 }`}
@@ -290,26 +308,31 @@ export default function LobbyPage() {
                 {mode.label}
               </button>
             ))}
+            </div>
           </div>
-          <div className="mb-4">
+
+          <div className="mt-6">
             <span className="text-sm text-[var(--muted)]">Players per team</span>
             <input
               type="number"
               min={1}
               max={10}
-              value={teamSize}
-              onChange={e => setTeamSize(Number(e.target.value))}
+              value={settingsTeamSize}
+              onChange={e => setSettingsTeamSize(Number(e.target.value))}
               className="ml-2 w-20 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
             />
           </div>
-          {createError && <p className="text-sm text-red-400 mb-2">{createError}</p>}
-          <button
-            onClick={createMatch}
-            disabled={createLoading}
-            className="rounded-lg border border-[var(--accent-2)] bg-[var(--accent-2)] px-6 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {createLoading ? "Creating..." : "Create CS2 Match"}
-          </button>
+
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <button
+              onClick={saveLobbySettings}
+              disabled={settingsSaving}
+              className="rounded-lg border border-[var(--accent-2)] bg-[var(--accent-2)] px-6 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {settingsSaving ? "Saving..." : "Save Lobby Settings"}
+            </button>
+            <span className="text-sm text-[var(--muted)]">Changes apply immediately to the active lobby.</span>
+          </div>
         </section>
       )}
 
@@ -327,6 +350,14 @@ export default function LobbyPage() {
             <Button variant="secondary" onClick={() => action("start_ready_check")}>
               Start Ready Check
             </Button>
+          )}
+          {canCancelMatch && (
+            <button
+              onClick={cancelMatch}
+              className="rounded-lg border border-[var(--danger)]/50 px-4 py-2 text-sm font-semibold text-[var(--danger)] transition hover:bg-[var(--danger)]/10"
+            >
+              {cancelLabel}
+            </button>
           )}
           <button
             onClick={leaveLobby}

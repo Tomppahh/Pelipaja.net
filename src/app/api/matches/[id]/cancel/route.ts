@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/src/backend/lib/session";
 import Match from "@/src/models/Match";
+import Lobby from "@/src/models/lobby";
 import { connectDB } from "@/src/backend/lib/db";
 import { destroyServer } from "@/src/backend/services/gameServerService";
+import { broadcastLobbyUpdate } from "@/src/backend/services/sse";
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   await connectDB();
@@ -28,6 +30,12 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
     if (match.gameId) {
       try { await destroyServer(match.gameId); } catch (err) { console.error('Failed to destroy server on cancel:', err); }
+    }
+
+    const lobby = await Lobby.findOne({ matchId: id });
+    if (lobby) {
+      await Lobby.deleteOne({ matchId: id });
+      broadcastLobbyUpdate(id, { closed: true });
     }
 
     return NextResponse.json({ ok: true });
