@@ -312,6 +312,21 @@ async function setCaptain({ lobby, user, body, matchId }: ActionContext): Promis
   return NextResponse.json(lobby);
 }
 
+async function transferLeader({ lobby, user, body, matchId }: ActionContext): Promise<NextResponse> {
+  if (!isPrivileged(lobby, user)) return error("Forbidden", 403);
+
+  const targetSteamId = body.targetSteamId as string;
+  if (!targetSteamId) return error("Missing targetSteamId", 400);
+
+  const target = lobby.players.find(p => p.steamId === targetSteamId);
+  if (!target) return error("Player not found", 404);
+
+  lobby.leaderId = targetSteamId;
+  await lobby.save();
+  broadcastLobbyUpdate(matchId, { ...lobby.toObject(), newLeaderId: targetSteamId });
+  return NextResponse.json({ success: true, newLeader: target.displayName });
+}
+
 async function updateSettings({ lobby, user, body, matchId }: ActionContext): Promise<NextResponse> {
   if (!isPrivileged(lobby, user)) return error("Forbidden", 403);
 
@@ -462,6 +477,7 @@ export const lobbyActions: Record<string, ActionHandler> = {
   fill_bots: fillBots,
   clear_bots: clearBots,
   set_captain: setCaptain,
+  transfer_leader: transferLeader,
   update_settings: updateSettings,
   start_ready_check: startReadyCheck,
   captain_pick: captainPick,

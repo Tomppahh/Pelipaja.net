@@ -20,11 +20,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { gameType, gameConfig, playersPerTeam, status, gameId, connectionIp, connectionPort } = match;
   const isOwner = user?.steamId && (gameConfig as any)?.ownerSteamID === user.steamId;
   const isAdmin = user?.role === 'admin';
+  const isLeader = user?.steamId && lobby?.leaderId === user.steamId;
+  const canCancel = Boolean(isAdmin || isLeader || (!lobby && isOwner));
 
  
   if (isAdmin) {
     const full = (typeof (match as any).toObject === 'function') ? (match as any).toObject() : { ...match };
-    return NextResponse.json({ ...full, isOwner, isAdmin });
+    return NextResponse.json({ ...full, isOwner, isAdmin, leaderId: lobby?.leaderId, canCancel });
   }
 
   // Non-admins get a sanitized view — include connection info and whether the
@@ -40,6 +42,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     connectionPort,
     isOwner,
     isAdmin,
+    leaderId: lobby?.leaderId,
+    canCancel,
     // apiPort, ownerSteamID intentionally omitted
   });
 }

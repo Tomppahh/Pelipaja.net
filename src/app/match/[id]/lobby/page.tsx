@@ -28,6 +28,7 @@ interface MatchData {
   mode?: string;
   isOwner?: boolean;
   isAdmin?: boolean;
+  canCancel?: boolean;
 }
 
 interface LobbyPlayer {
@@ -211,8 +212,10 @@ export default function LobbyPage() {
     me?.isCaptain &&
     me.team === lobby.mapVetoState.currentTurn;
 
+  const leader = lobby?.players.find(p => p.steamId === lobby.leaderId);
+
   const canEditLobbySettings = lobby?.phase === "waiting" && (isLeader || isAdmin);
-  const canCancelMatch = !!match && (match.isOwner || match.isAdmin);
+  const canCancelMatch = !!match && (lobby ? (isLeader || isAdmin) : !!match.canCancel);
   const cancelLabel = match?.status === "ready" || match?.status === "live"
     ? "Close Server"
     : "Cancel Match";
@@ -280,6 +283,10 @@ export default function LobbyPage() {
       : "leave_lobby";
     await action(actionName);
     router.push("/match");
+  }
+
+  async function transferLeader(targetSteamId: string) {
+    await action("transfer_leader", { targetSteamId });
   }
 
   async function devForceReady() {
@@ -363,6 +370,9 @@ export default function LobbyPage() {
         <div>
           <PageTitle>{MODE_LABEL[lobby.settings.mode] ?? lobby.settings.mode}</PageTitle>
           <Muted className="mt-1">{PHASE_LABEL[lobby.phase]}</Muted>
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            Lobby leader: <span className="font-semibold text-[var(--foreground)]">{leader?.displayName ?? lobby.leaderId}</span>
+          </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
           {(lobby.phase === "waiting" || lobby.phase === "ready_check") && me && !me.isReady && (
@@ -516,6 +526,8 @@ export default function LobbyPage() {
           onSetCaptain={(steamId) => action("set_captain", { targetSteamId: steamId })}
           isAdmin={isAdmin}
           onKick={(steamId) => action("kick_player", { targetSteamId: steamId })}
+          leaderId={lobby.leaderId}
+          onTransferLeader={transferLeader}
           onCaptainPick={(steamId) => action("captain_pick", { pickedSteamId: steamId })}
         />
 
@@ -539,6 +551,9 @@ export default function LobbyPage() {
                   onSetCaptain={() => {}}
                   showKickToggle={isLeader || isAdmin}
                   onKick={() => action("kick_player", { targetSteamId: p.steamId })}
+                  leaderId={lobby.leaderId}
+                  showLeaderAction={isLeader || isAdmin}
+                  onTransferLeader={() => transferLeader(p.steamId)}
                 />
               ))
           }
@@ -560,6 +575,8 @@ export default function LobbyPage() {
           onSetCaptain={(steamId) => action("set_captain", { targetSteamId: steamId })}
           isAdmin={isAdmin}
           onKick={(steamId) => action("kick_player", { targetSteamId: steamId })}
+          leaderId={lobby.leaderId}
+          onTransferLeader={transferLeader}
           onCaptainPick={(steamId) => action("captain_pick", { pickedSteamId: steamId })}
         />
       </div>
@@ -587,6 +604,7 @@ function TeamPanel({
   label, team, players, teamSize, mySteamId, isLeader, isAdmin,
   phase, myTeam, isMyCaptainTurn,
   onJoin, onLeaveTeam, onSetCaptain, onKick, onCaptainPick,
+  leaderId, onTransferLeader,
 }: {
   label: string;
   team: Team;
@@ -603,6 +621,8 @@ function TeamPanel({
   onSetCaptain: (steamId: string) => void;
   onKick: (steamId: string) => void;
   onCaptainPick: (steamId: string) => void;
+  leaderId: string;
+  onTransferLeader: (steamId: string) => void;
 }) {
   const canJoin = phase === "waiting" && myTeam !== team && players.length < teamSize;
   const amOnThisTeam = myTeam === team;
@@ -630,6 +650,9 @@ function TeamPanel({
           onSetCaptain={() => onSetCaptain(p.steamId)}
           showKickToggle={isLeader || isAdmin}
           onKick={() => onKick(p.steamId)}
+          leaderId={leaderId}
+          showLeaderAction={(isLeader || isAdmin) && p.steamId !== leaderId}
+          onTransferLeader={() => onTransferLeader(p.steamId)}
           extraAction={
             p.steamId === mySteamId && amOnThisTeam && phase === "waiting"
               ? { label: "Leave team", onClick: onLeaveTeam }
@@ -660,6 +683,7 @@ function TeamPanel({
 
 function PlayerRow({
   player, isMe, isLeader, showCaptainToggle, pickable, onPick, onSetCaptain, extraAction, showKickToggle, onKick,
+  leaderId, showLeaderAction, onTransferLeader,
 }: {
   player: LobbyPlayer;
   isMe: boolean;
@@ -671,6 +695,9 @@ function PlayerRow({
   extraAction?: { label: string; onClick: () => void };
   showKickToggle?: boolean;
   onKick?: () => void;
+  leaderId: string;
+  showLeaderAction?: boolean;
+  onTransferLeader?: () => void;
 }) {
   return (
     <div className={`group flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition ${
@@ -687,6 +714,9 @@ function PlayerRow({
         <span className="block truncate">{player.displayName}</span>
         {player.isCaptain && (
           <span className="text-xs font-normal text-[var(--accent)]">Captain</span>
+        )}
+        {player.steamId === leaderId && (
+          <span className="text-xs font-normal text-[var(--foreground)]/70">Leader</span>
         )}
       </span>
 
@@ -721,6 +751,16 @@ function PlayerRow({
             className="rounded px-1.5 py-0.5 text-xs text-[var(--muted)] transition hover:bg-[var(--danger)]/10 hover:text-[var(--danger)]"
           >
             Kick
+          </button>
+        )}
+
+        {showLeaderAction && onTransferLeader && player.steamId !== leaderId && (
+          <button
+            onClick={onTransferLeader}
+            title="Give lobby leader"
+            className="rounded px-1.5 py-0.5 text-xs text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+          >
+            Give leader
           </button>
         )}
 
