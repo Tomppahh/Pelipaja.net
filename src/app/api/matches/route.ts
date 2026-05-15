@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
       ownerName: user.displayName ?? user.steamId,
       ownerSteamID: user.steamId,
     },
+    playersPerTeam: teamSize,
     status: "pending",
   });
 
