@@ -271,20 +271,24 @@ async function captainPick({ lobby, user, body, matchId }: ActionContext): Promi
 
   const { currentTurn, unpickedPlayers } = lobby.captainPickState;
   const captain = lobby.players.find(p => p.steamId === user.steamId && p.isCaptain);
+  
   if (!captain || captain.team !== currentTurn) return error("Not your turn", 403);
 
   const picked = lobby.players.find(p => p.steamId === body.pickedSteamId);
   if (!picked) return error("Player not found", 404);
 
-    // Check if both teams are full and there are no unpicked players
+  // Check if both teams are full
   const team1Count = lobby.players.filter(p => p.team === "team1").length;
   const team2Count = lobby.players.filter(p => p.team === "team2").length;
-  const isTeamSizeFull = team1Count === lobby.settings.teamSize && team2Count === lobby.settings.teamSize;
 
-  if (isTeamSizeFull && unpickedPlayers.length === 0) {
-    return NextResponse.json({ success: true, message: "All players picked, teams are full." });
+  // Here, we assume `lobby.settings.teamSize` gives the maximum number of players per team.
+  const isTeamSizeFull = team1Count >= lobby.settings.teamSize && team2Count >= lobby.settings.teamSize;
+
+  if (isTeamSizeFull) {
+    return NextResponse.json({ success: true, message: "Both teams are fully populated. No further picks are allowed." });
   }
 
+  // Proceed with the usual picking logic
   picked.team = currentTurn;
   lobby.captainPickState.unpickedPlayers = unpickedPlayers.filter(id => id !== picked.steamId);
   lobby.captainPickState.currentTurn = currentTurn === "team1" ? "team2" : "team1";
