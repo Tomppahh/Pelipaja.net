@@ -41,6 +41,11 @@ export default function CreateCS2MatchPage() {
       const data = await res.json();
 
       if (!res.ok) {
+        if (res.status === 409 && data.matchId) {
+          router.push(`/match/${data.matchId}/lobby`);
+          setLoading(false);
+          return;
+        }
         setError(data.error ?? "Something went wrong");
         setLoading(false);
         return;
