@@ -65,3 +65,7 @@ data/
 # API test routes
 src/app/api/test/
 src/app/api/dev/
+
+
+#dev-ready folder
+src/app/api/matches/[id]/dev-ready/

@@ -13,7 +13,7 @@ export async function GET() {
   const { connectDB } = await import("@/src/backend/lib/db");
   await connectDB();
   const matches = await Match.find({
-    status: { $in: ["pending", "configuring","ready", "live"] }
+    status: { $in: ["configuring","ready", "live"] }
   }).sort({ createdAt: -1 });
 
   return NextResponse.json(matches);

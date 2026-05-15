@@ -17,16 +17,22 @@ export default async function Home() {
 	return (
 		<>
 			<main className='flex min-h-screen flex-col items-center justify-center'>
-				<h1 className='font-display text-5xl font-bold text-[var(--foreground)]'>Pelipaja.net</h1>
+				<h1 className='font-display text-5xl pb-10 font-bold text-[var(--foreground)]'>Welcome to Pelipaja</h1>
                 
 				{user && hasRole(user.role, lobby) && <a className="mt-16 inline-block rounded-lg bg-[var(--accent)] px-6 py-3 font-bold text-[var(--accent-contrast)] shadow-lg transition hover:brightness-110" href="/match">
-					CREATE MATCH
+					CREATE LOBBY
 				</a>}
-
+				{user && hasRole(user.role, lobby) && <a className="mt-16 inline-block rounded-lg bg-[var(--accent)] px-6 py-3 font-bold text-[var(--accent-contrast)] shadow-lg transition hover:brightness-110" href="/match/new/cs2">
+					CREATE SERVER
+				</a>}
 				{myMatchId && (
-					<a className="mt-4 inline-block text-sm text-[var(--foreground)] underline" href={`/match/${myMatchId}`}>Go to my match</a>
+					<a className="mt-4 inline-block text-sm text-[var(--foreground)] underline" href={`/match/${myMatchId}`}>Go to my Server</a>
 				)}
-                        
+				{myMatchId && (
+					<a className="mt-4 inline-block text-sm text-[var(--foreground)] underline" href={`/match/${myMatchId}/lobby`}>Go to my Lobby</a>
+				)}
+				<h4 className='font-display text-l font-bold  pt-50 text-[var(--foreground)]'>Still in active development, bugs may occur!</h4> 
+                 <h4 className='font-display text-l font-bold text-[var(--foreground)]'>Lobby system may contain bugs, creating a server without lobby works!</h4>       
 			</main>
 		</>
 	);

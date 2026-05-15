@@ -24,28 +24,23 @@ export default function MatchPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-  
     const fetchMatch = async () => {
       try {
         const res = await fetch(`/api/matches/${id}`);
         const data = await res.json();
-
         if (!res.ok) {
           setError(data.error ?? "Match not found");
           return;
         }
-
         setMatch(data);
         return data.status;
       } catch {
-        
+        // network error — next poll will retry
       }
     };
 
-    // Fetch immediately on load
     fetchMatch();
 
-    // Poll every 3 seconds until match is live or ended
     const interval = setInterval(async () => {
       const status = await fetchMatch();
       if (status === "live" || status === "cancelled" || status === "finished") {
@@ -93,7 +88,9 @@ export default function MatchPage() {
         <Card className="w-full">
           <PageTitle className="text-2xl">Creating Server...</PageTitle>
           <Muted className="mt-2">Please wait while your server is being set up. This usually takes about a minute.</Muted>
-          <p className="mt-4 text-sm text-[var(--foreground)]">Map: <span className="font-semibold text-[var(--accent)]">{match.gameConfig?.map}</span></p>
+          <p className="mt-4 text-sm text-[var(--foreground)]">
+            Map: <span className="font-semibold text-[var(--accent)]">{match.gameConfig?.map}</span>
+          </p>
         </Card>
       </main>
     );
@@ -101,13 +98,15 @@ export default function MatchPage() {
 
   if (match.status === "ready" || match.status === "live") {
     const connectString = `connect ${match.connectionIp}:${match.connectionPort}`;
-    const steamUrl = `steam://connect/${connectString}`;
+    const steamUrl = `steam://connect/${match.connectionIp}:${match.connectionPort}`;
 
     return (
       <main className="mx-auto flex min-h-[calc(100vh-88px)] w-full max-w-2xl items-center justify-center px-4 py-8 sm:px-6">
         <Card className="w-full">
           <PageTitle className="text-2xl">Server Ready!</PageTitle>
-          <p className="mt-3 text-sm text-[var(--foreground)]">Map: <span className="font-semibold text-[var(--accent)]">{match.gameConfig?.map}</span></p>
+          <p className="mt-3 text-sm text-[var(--foreground)]">
+            Map: <span className="font-semibold text-[var(--accent)]">{match.gameConfig?.map}</span>
+          </p>
           <code className="mt-4 block rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)]">
             {connectString}
           </code>
@@ -119,19 +118,24 @@ export default function MatchPage() {
               <Button>Connect via Steam</Button>
             </a>
             {(match.isOwner || match.isAdmin) && (
-              <Button className="ml-2 bg-red-600 text-white" onClick={async () => {
-                if (!confirm('Cancel this match and stop the server?')) return;
-                try {
-                  const res = await fetch(`/api/matches/${id}/cancel`, { method: 'POST' });
-                  if (res.ok) {
-                    setMatch(prev => prev ? { ...prev, status: 'cancelled' } : prev);
-                  } else {
-                    alert('Failed to cancel');
+              <Button
+                className="ml-2 bg-red-600 text-white"
+                onClick={async () => {
+                  if (!confirm("Cancel this match and stop the server?")) return;
+                  try {
+                    const res = await fetch(`/api/matches/${id}/cancel`, { method: "POST" });
+                    if (res.ok) {
+                      setMatch(prev => prev ? { ...prev, status: "cancelled" } : prev);
+                    } else {
+                      alert("Failed to cancel");
+                    }
+                  } catch {
+                    alert("Failed to cancel");
                   }
-                } catch (err) {
-                  alert('Failed to cancel');
-                }
-              }}>Cancel Match</Button>
+                }}
+              >
+                Cancel Match
+              </Button>
             )}
           </div>
         </Card>
