@@ -97,10 +97,7 @@ export default function LobbyPage() {
   // Auto-leave when tab/window closes
   useEffect(() => {
     const handleUnload = () => {
-      navigator.sendBeacon(
-        `/api/matches/${id}/lobby`,
-        JSON.stringify({ action: "leave_lobby" })
-      );
+      // Intentionally do not remove players on unload to allow quick reconnects
     };
     window.addEventListener("beforeunload", handleUnload);
     return () => window.removeEventListener("beforeunload", handleUnload);
