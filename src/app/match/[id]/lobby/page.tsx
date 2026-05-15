@@ -1,3 +1,11 @@
+// Lobby modes for create match UI
+const LOBBY_MODES = [
+  { id: "use_current_teams", label: "Use Current Teams" },
+  { id: "captain_pick",      label: "Captain Pick" },
+  { id: "captain_map_veto",  label: "Captain Map Veto" },
+  { id: "pick_map",          label: "Pick Map" },
+] as const;
+type LobbyMode = (typeof LOBBY_MODES)[number]["id"];
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -73,6 +81,34 @@ export default function LobbyPage() {
   const [myRole, setMyRole] = useState<string | null>(null);
   const [error, setError] = useState("");
   const joinedRef = useRef(false);
+
+  // Create Match UI state
+  const [lobbyMode, setLobbyMode] = useState<LobbyMode>("use_current_teams");
+  const [teamSize, setTeamSize] = useState(5);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createError, setCreateError] = useState("");
+
+  async function createMatch() {
+    setCreateLoading(true);
+    setCreateError("");
+    try {
+      const res = await fetch("/api/matches", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gameType: "cs2", lobbyMode, teamSize }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCreateError(data.error ?? "Something went wrong");
+        return;
+      }
+      router.push(`/match/${data.matchId}/lobby`);
+    } catch {
+      setCreateError("Failed to create match");
+    } finally {
+      setCreateLoading(false);
+    }
+  }
 
   // Join once on mount
   useEffect(() => {
@@ -229,8 +265,52 @@ export default function LobbyPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
+  // Show create match UI only for leader, phase waiting
+  const showCreateMatch = lobby && lobby.leaderId === mySteamId && lobby.phase === "waiting";
+
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+
+      {showCreateMatch && (
+        <section className="mb-8 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 p-8 shadow-2xl backdrop-blur">
+          <h2 className="font-display text-2xl font-bold tracking-tight text-[var(--foreground)] mb-2">Create Match</h2>
+          <div className="mb-4"><span className="text-sm text-[var(--muted)]">Lobby mode</span></div>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {LOBBY_MODES.map((mode) => (
+              <button
+                key={mode.id}
+                onClick={() => setLobbyMode(mode.id)}
+                className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
+                  lobbyMode === mode.id
+                    ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+                    : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
+                }`}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
+          <div className="mb-4">
+            <span className="text-sm text-[var(--muted)]">Players per team</span>
+            <input
+              type="number"
+              min={1}
+              max={10}
+              value={teamSize}
+              onChange={e => setTeamSize(Number(e.target.value))}
+              className="ml-2 w-20 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            />
+          </div>
+          {createError && <p className="text-sm text-red-400 mb-2">{createError}</p>}
+          <button
+            onClick={createMatch}
+            disabled={createLoading}
+            className="rounded-lg border border-[var(--accent-2)] bg-[var(--accent-2)] px-6 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {createLoading ? "Creating..." : "Create CS2 Match"}
+          </button>
+        </section>
+      )}
 
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
@@ -380,6 +460,8 @@ export default function LobbyPage() {
           onJoin={() => action("join_team", { team: "team1" })}
           onLeaveTeam={() => action("leave_team")}
           onSetCaptain={(steamId) => action("set_captain", { targetSteamId: steamId })}
+          isAdmin={isAdmin}
+          onKick={(steamId) => action("kick_player", { targetSteamId: steamId })}
           onCaptainPick={(steamId) => action("captain_pick", { pickedSteamId: steamId })}
         />
 
@@ -401,6 +483,8 @@ export default function LobbyPage() {
                   pickable={!!isMyCaptainTurn}
                   onPick={() => action("captain_pick", { pickedSteamId: p.steamId })}
                   onSetCaptain={() => {}}
+                  showKickToggle={isLeader || isAdmin}
+                  onKick={() => action("kick_player", { targetSteamId: p.steamId })}
                 />
               ))
           }
@@ -420,6 +504,8 @@ export default function LobbyPage() {
           onJoin={() => action("join_team", { team: "team2" })}
           onLeaveTeam={() => action("leave_team")}
           onSetCaptain={(steamId) => action("set_captain", { targetSteamId: steamId })}
+          isAdmin={isAdmin}
+          onKick={(steamId) => action("kick_player", { targetSteamId: steamId })}
           onCaptainPick={(steamId) => action("captain_pick", { pickedSteamId: steamId })}
         />
       </div>
@@ -444,9 +530,9 @@ export default function LobbyPage() {
 // ── TeamPanel ─────────────────────────────────────────────────────────────────
 
 function TeamPanel({
-  label, team, players, teamSize, mySteamId, isLeader,
+  label, team, players, teamSize, mySteamId, isLeader, isAdmin,
   phase, myTeam, isMyCaptainTurn,
-  onJoin, onLeaveTeam, onSetCaptain, onCaptainPick,
+  onJoin, onLeaveTeam, onSetCaptain, onKick, onCaptainPick,
 }: {
   label: string;
   team: Team;
@@ -454,12 +540,14 @@ function TeamPanel({
   teamSize: number;
   mySteamId: string | null;
   isLeader: boolean;
+  isAdmin: boolean;
   phase: Phase;
   myTeam: Team;
   isMyCaptainTurn: boolean;
   onJoin: () => void;
   onLeaveTeam: () => void;
   onSetCaptain: (steamId: string) => void;
+  onKick: (steamId: string) => void;
   onCaptainPick: (steamId: string) => void;
 }) {
   const canJoin = phase === "waiting" && myTeam !== team;
@@ -482,6 +570,8 @@ function TeamPanel({
           pickable={false}
           onPick={() => {}}
           onSetCaptain={() => onSetCaptain(p.steamId)}
+          showKickToggle={isLeader || isAdmin}
+          onKick={() => onKick(p.steamId)}
           extraAction={
             p.steamId === mySteamId && amOnThisTeam && phase === "waiting"
               ? { label: "Leave team", onClick: onLeaveTeam }
@@ -511,7 +601,7 @@ function TeamPanel({
 // ── PlayerRow ─────────────────────────────────────────────────────────────────
 
 function PlayerRow({
-  player, isMe, isLeader, showCaptainToggle, pickable, onPick, onSetCaptain, extraAction,
+  player, isMe, isLeader, showCaptainToggle, pickable, onPick, onSetCaptain, extraAction, showKickToggle, onKick,
 }: {
   player: LobbyPlayer;
   isMe: boolean;
@@ -521,6 +611,8 @@ function PlayerRow({
   onPick: () => void;
   onSetCaptain: () => void;
   extraAction?: { label: string; onClick: () => void };
+  showKickToggle?: boolean;
+  onKick?: () => void;
 }) {
   return (
     <div className={`group flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition ${
@@ -554,6 +646,17 @@ function PlayerRow({
             className="rounded px-1.5 py-0.5 text-xs text-[var(--muted)] opacity-0 transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] group-hover:opacity-100"
           >
             {player.isCaptain ? "★" : "☆"}
+          </button>
+        )}
+
+        {/* Kick player (leader/admin) */}
+        {showKickToggle && !isMe && onKick && (
+          <button
+            onClick={onKick}
+            title="Kick player"
+            className="rounded px-1.5 py-0.5 text-xs text-[var(--muted)] opacity-0 transition hover:bg-[var(--danger)]/10 hover:text-[var(--danger)] group-hover:opacity-100"
+          >
+            Kick
           </button>
         )}
 

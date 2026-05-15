@@ -11,13 +11,9 @@ export default async function Home() {
 	let myMatchId: string | null = null;
 	if (user) {
 		await connectDB();
-		const lobby = await Lobby.findOne({ 'players.steamId': user.steamId }).select('matchId');
-		if (lobby) {
-			myMatchId = lobby.matchId.toString();
-		} else {
-			const m = await Match.findOne({ 'gameConfig.ownerSteamID': user.steamId, status: { $in: ['pending','configuring','ready','live'] } }).select('_id');
-			if (m) myMatchId = m._id.toString();
-		}
+		// Only consider lobbies where the user is an active participant
+		const userLobby = await Lobby.findOne({ 'players.steamId': user.steamId }).select('matchId');
+		if (userLobby) myMatchId = userLobby.matchId.toString();
 	}
 
 	return (
