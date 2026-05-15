@@ -1,4 +1,5 @@
 // Lobby modes for create match UI
+"use client";
 const LOBBY_MODES = [
   { id: "use_current_teams", label: "Use Current Teams" },
   { id: "captain_pick",      label: "Captain Pick" },
@@ -6,7 +7,7 @@ const LOBBY_MODES = [
   { id: "pick_map",          label: "Pick Map" },
 ] as const;
 type LobbyMode = (typeof LOBBY_MODES)[number]["id"];
-"use client";
+
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
