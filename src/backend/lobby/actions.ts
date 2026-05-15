@@ -276,6 +276,15 @@ async function captainPick({ lobby, user, body, matchId }: ActionContext): Promi
   const picked = lobby.players.find(p => p.steamId === body.pickedSteamId);
   if (!picked) return error("Player not found", 404);
 
+    // Check if both teams are full and there are no unpicked players
+  const team1Count = lobby.players.filter(p => p.team === "team1").length;
+  const team2Count = lobby.players.filter(p => p.team === "team2").length;
+  const isTeamSizeFull = team1Count === lobby.settings.teamSize && team2Count === lobby.settings.teamSize;
+
+  if (isTeamSizeFull && unpickedPlayers.length === 0) {
+    return NextResponse.json({ success: true, message: "All players picked, teams are full." });
+  }
+
   picked.team = currentTurn;
   lobby.captainPickState.unpickedPlayers = unpickedPlayers.filter(id => id !== picked.steamId);
   lobby.captainPickState.currentTurn = currentTurn === "team1" ? "team2" : "team1";
