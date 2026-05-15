@@ -304,6 +304,23 @@ async function captainPick({ lobby, user, body, matchId }: ActionContext): Promi
   return NextResponse.json(lobby);
 }
 
+async function captainPickComplete({ lobby, user, matchId }: ActionContext): Promise<NextResponse> {
+  if (!isPrivileged(lobby, user)) return error("Forbidden", 403);
+  if (lobby.phase !== "captain_pick") return error("Not in pick phase", 400);
+
+  const unassigned = lobby.players.filter(p => p.team === "none");
+  const team1Count = lobby.players.filter(p => p.team === "team1").length;
+  const team2Count = lobby.players.filter(p => p.team === "team2").length;
+  const teamsFull = team1Count >= lobby.settings.teamSize && team2Count >= lobby.settings.teamSize;
+
+  if (unassigned.length === 0 || teamsFull) {
+    await startMapVeto(lobby, matchId);
+    return NextResponse.json(lobby);
+  }
+
+  return error("Cannot complete pick yet", 400);
+}
+
 async function mapVeto({ lobby, user, body, matchId }: ActionContext): Promise<NextResponse> {
   if (!lobby.mapVetoState) return error("Not in veto phase", 400);
 
@@ -344,5 +361,6 @@ export const lobbyActions: Record<string, ActionHandler> = {
   update_settings: updateSettings,
   start_ready_check: startReadyCheck,
   captain_pick: captainPick,
+  captain_pick_complete: captainPickComplete,
   map_veto: mapVeto,
 };
