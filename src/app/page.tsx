@@ -1,6 +1,7 @@
 import { getSession } from '../backend/lib/session';
 import {ROLES, hasRole} from "@/src/lib/config/settings"
 import { connectDB } from '@/src/backend/lib/db';
+import Lobby from '@/src/models/lobby';
 import Match from '@/src/models/Match';
 
 export default async function Home() {
@@ -10,8 +11,13 @@ export default async function Home() {
 	let myMatchId: string | null = null;
 	if (user) {
 		await connectDB();
-		const m = await Match.findOne({ 'gameConfig.ownerSteamID': user.steamId, status: { $in: ['pending','configuring','ready','live'] } }).select('_id');
-		if (m) myMatchId = m._id.toString();
+		const lobby = await Lobby.findOne({ 'players.steamId': user.steamId }).select('matchId');
+		if (lobby) {
+			myMatchId = lobby.matchId.toString();
+		} else {
+			const m = await Match.findOne({ 'gameConfig.ownerSteamID': user.steamId, status: { $in: ['pending','configuring','ready','live'] } }).select('_id');
+			if (m) myMatchId = m._id.toString();
+		}
 	}
 
 	return (
@@ -22,12 +28,7 @@ export default async function Home() {
 				{user && hasRole(user.role, lobby) && <a className="mt-16 inline-block rounded-lg bg-[var(--accent)] px-6 py-3 font-bold text-[var(--accent-contrast)] shadow-lg transition hover:brightness-110" href="/match">
 					CREATE LOBBY
 				</a>}
-				{user && hasRole(user.role, lobby) && <a className="mt-16 inline-block rounded-lg bg-[var(--accent)] px-6 py-3 font-bold text-[var(--accent-contrast)] shadow-lg transition hover:brightness-110" href="/match/new/cs2">
-					CREATE SERVER
-				</a>}
-				{myMatchId && (
-					<a className="mt-4 inline-block text-sm text-[var(--foreground)] underline" href={`/match/${myMatchId}`}>Go to my Server</a>
-				)}
+
 				{myMatchId && (
 					<a className="mt-4 inline-block text-sm text-[var(--foreground)] underline" href={`/match/${myMatchId}/lobby`}>Go to my Lobby</a>
 				)}

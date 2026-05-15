@@ -11,6 +11,14 @@ import { Muted, PageTitle } from "@/src/app/components/ui/typography";
 type Team = "team1" | "team2" | "none";
 type Phase = "waiting" | "ready_check" | "captain_pick" | "map_veto" | "starting";
 
+interface MatchData {
+  status: string;
+  connectionIp?: string;
+  connectionPort?: number;
+  map?: string;
+  mode?: string;
+}
+
 interface LobbyPlayer {
   steamId: string;
   displayName: string;
@@ -60,6 +68,7 @@ export default function LobbyPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [lobby, setLobby] = useState<Lobby | null>(null);
+  const [match, setMatch] = useState<MatchData | null>(null);
   const [mySteamId, setMySteamId] = useState<string | null>(null);
   const [myRole, setMyRole] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -111,6 +120,30 @@ export default function LobbyPage() {
     return () => es.close();
   }, [id]);
 
+  // Match state — server start / ready state
+  useEffect(() => {
+    let active = true;
+
+    const fetchMatch = async () => {
+      try {
+        const res = await fetch(`/api/matches/${id}`);
+        const data = await res.json();
+        if (!active || !res.ok) return;
+        setMatch(data);
+      } catch {
+        // next poll will retry
+      }
+    };
+
+    fetchMatch();
+
+    const interval = setInterval(fetchMatch, 3000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [id]);
+
   // ── Actions ───────────────────────────────────────────────────────────────
 
   async function action(name: string, extra?: Record<string, unknown>) {
@@ -149,6 +182,11 @@ export default function LobbyPage() {
   const team1    = lobby?.players.filter(p => p.team === "team1") ?? [];
   const team2    = lobby?.players.filter(p => p.team === "team2") ?? [];
   const unassigned = lobby?.players.filter(p => p.team === "none") ?? [];
+  const isServerReady = match?.status === "ready" || match?.status === "live";
+  const connectString = match?.connectionIp && match?.connectionPort
+    ? `connect ${match.connectionIp}:${match.connectionPort}`
+    : null;
+  const readyMap = match?.map ?? lobby?.mapVetoState?.remainingMaps?.[0] ?? lobby?.settings.mapPool?.[0];
 
   const isMyCaptainTurn =
     lobby?.phase === "captain_pick" &&
@@ -206,6 +244,40 @@ export default function LobbyPage() {
           </button>
         </div>
       </div>
+
+      {match && !isServerReady && (match.status === "pending" || match.status === "configuring") && (
+        <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+          <PageTitle className="text-xl">Creating Server...</PageTitle>
+          <Muted className="mt-1">Please wait while the server starts.</Muted>
+          {readyMap && (
+            <p className="mt-3 text-sm text-[var(--foreground)]">
+              Map: <span className="font-semibold text-[var(--accent)]">{readyMap}</span>
+            </p>
+          )}
+        </div>
+      )}
+
+      {isServerReady && connectString && (
+        <div className="mt-4 rounded-lg border border-[var(--accent)]/30 bg-[var(--accent)]/10 px-4 py-3">
+          <PageTitle className="text-xl">Server Ready</PageTitle>
+          {readyMap && (
+            <p className="mt-1 text-sm text-[var(--foreground)]">
+              Map: <span className="font-semibold text-[var(--accent)]">{readyMap}</span>
+            </p>
+          )}
+          <code className="mt-3 block rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)]">
+            {connectString}
+          </code>
+          <div className="mt-3 flex items-center gap-3">
+            <Button variant="secondary" onClick={() => navigator.clipboard.writeText(connectString)}>
+              Copy
+            </Button>
+            <a href={`steam://connect/${match.connectionIp}:${match.connectionPort}`}>
+              <Button>Connect via Steam</Button>
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* Captain pick banner */}
       {lobby.phase === "captain_pick" && lobby.captainPickState && (
