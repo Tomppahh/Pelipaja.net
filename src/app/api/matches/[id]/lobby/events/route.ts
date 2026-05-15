@@ -22,7 +22,12 @@ export async function GET(
       const lobby = await Lobby.findOne({ matchId: id });
       if (lobby) send(`data: ${JSON.stringify(lobby.toObject())}\n\n`);
 
+      const heartbeat = setInterval(() => {
+        send(`data: {"heartbeat":true}\n\n`);
+      }, 30000);
+
       req.signal.addEventListener("abort", () => {
+        clearInterval(heartbeat);
         unregisterSubscriber(id, send);
         controller.close();
       });

@@ -4,14 +4,53 @@ import { CS2_MAPS } from "@/src/backend/games/cs2/config/maps";
 import { broadcastLobbyUpdate } from "@/src/backend/services/sse";
 import { CreateServerResult } from "./types";
 
+export function validateLobbyCanStart(lobby: ILobby): string | null {
+  const team1 = lobby.players.filter(p => p.team === "team1");
+  const team2 = lobby.players.filter(p => p.team === "team2");
+  const unassigned = lobby.players.filter(p => p.team === "none");
+
+  if (unassigned.length > 0) {
+    return "Assign all players to a team before starting.";
+  }
+
+  if (team1.length === 0 || team2.length === 0) {
+    return "Both teams must have players before starting.";
+  }
+
+  const team1Captains = team1.filter(p => p.isCaptain);
+  const team2Captains = team2.filter(p => p.isCaptain);
+
+  if (team1Captains.length !== 1 || team2Captains.length !== 1) {
+    return "Each team must have exactly one captain before starting.";
+  }
+
+  return null;
+}
+
 // ─── Entry point after all players ready up ──────────────────────────────────
 
-export async function handleAllReady(lobby: ILobby, matchId: string) {
+export async function handleAllReady(lobby: ILobby, matchId: string): Promise<string | null> {
+  const blocker = validateLobbyCanStart(lobby);
+  if (blocker) return blocker;
+
   const { mode } = lobby.settings;
 
-  if (mode === "use_current_teams") return finalizeLobbyAndStartServer(lobby, matchId);
-  if (mode === "pick_map") return startMapVeto(lobby, matchId);
-  if (mode === "captain_pick" || mode === "captain_map_veto") return startCaptainPick(lobby, matchId);
+  if (mode === "use_current_teams") {
+    await finalizeLobbyAndStartServer(lobby, matchId);
+    return null;
+  }
+
+  if (mode === "pick_map") {
+    await startMapVeto(lobby, matchId);
+    return null;
+  }
+
+  if (mode === "captain_pick" || mode === "captain_map_veto") {
+    await startCaptainPick(lobby, matchId);
+    return null;
+  }
+
+  return "Unsupported lobby mode.";
 }
 
 // ─── Captain pick ─────────────────────────────────────────────────────────────
@@ -125,6 +164,12 @@ export function scheduleBotVeto(matchId: string) {
 
 export async function finalizeLobbyAndStartServer(lobby: ILobby, matchId: string) {
   if (lobby.phase === "starting") return; // Idempotency guard
+
+  const blocker = validateLobbyCanStart(lobby);
+  if (blocker) {
+    broadcastLobbyUpdate(matchId, { ...lobby.toObject(), startBlocked: blocker });
+    return;
+  }
 
   const map =
     lobby.mapVetoState?.remainingMaps[0] ??

@@ -1,4 +1,4 @@
-// Lobby modes for create match UI
+// Lobby modes for in-lobby settings
 "use client";
 const LOBBY_MODES = [
   { id: "use_current_teams", label: "Use Current Teams" },
@@ -84,6 +84,7 @@ export default function LobbyPage() {
   const [myRole, setMyRole] = useState<string | null>(null);
   const [error, setError] = useState("");
   const joinedRef = useRef(false);
+  const lastLobbyEventRef = useRef(Date.now());
 
   // Lobby settings state
   const [settingsMode, setSettingsMode] = useState<LobbyMode>("use_current_teams");
@@ -128,15 +129,36 @@ export default function LobbyPage() {
   // SSE — live lobby state
   useEffect(() => {
     const es = new EventSource(`/api/matches/${id}/lobby/events`);
+
+    const markAlive = () => {
+      lastLobbyEventRef.current = Date.now();
+      setError(current => (current === "Lost connection to lobby. Refresh to reconnect." ? "" : current));
+    };
+
+    const staleTimer = window.setInterval(() => {
+      if (Date.now() - lastLobbyEventRef.current > 10 * 60 * 1000) {
+        setError("Lost connection to lobby. Refresh to reconnect.");
+        es.close();
+        window.clearInterval(staleTimer);
+      }
+    }, 30000);
+
     es.onmessage = (e) => {
       try {
+        markAlive();
         const data = JSON.parse(e.data);
+        if (data.heartbeat) return;
         if (data.closed) { setError("This lobby has been closed."); es.close(); return; }
         setLobby(data);
       } catch { /* malformed frame */ }
     };
-    es.onerror = () => { setError("Lost connection to lobby. Refresh to reconnect."); es.close(); };
-    return () => es.close();
+    es.onerror = () => {
+      // Allow EventSource to reconnect; the stale timer handles persistent loss.
+    };
+    return () => {
+      window.clearInterval(staleTimer);
+      es.close();
+    };
   }, [id]);
 
   // Match state — server start / ready state
@@ -582,7 +604,7 @@ function TeamPanel({
   onKick: (steamId: string) => void;
   onCaptainPick: (steamId: string) => void;
 }) {
-  const canJoin = phase === "waiting" && myTeam !== team;
+  const canJoin = phase === "waiting" && myTeam !== team && players.length < teamSize;
   const amOnThisTeam = myTeam === team;
 
   return (
@@ -592,13 +614,17 @@ function TeamPanel({
         <span className="text-xs text-[var(--muted)]">{players.length}/{teamSize}</span>
       </div>
 
+      {isLeader || isAdmin ? (
+        <p className="text-[11px] text-[var(--muted)]">Use the captain button on a player to reassign that team’s captain.</p>
+      ) : null}
+
       {players.map(p => (
         <PlayerRow
           key={p.steamId}
           player={p}
           isMe={p.steamId === mySteamId}
           isLeader={isLeader}
-          showCaptainToggle={isLeader && phase === "waiting"}
+          showCaptainToggle={phase === "waiting" && (isLeader || isAdmin)}
           pickable={false}
           onPick={() => {}}
           onSetCaptain={() => onSetCaptain(p.steamId)}
@@ -671,14 +697,20 @@ function PlayerRow({
         </span>
 
         {/* Leader: assign captain */}
-        {showCaptainToggle && (
+        {showCaptainToggle && !player.isCaptain && (
           <button
             onClick={onSetCaptain}
-            title={player.isCaptain ? "Remove captain" : "Make captain"}
-            className="rounded px-1.5 py-0.5 text-xs text-[var(--muted)] opacity-0 transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] group-hover:opacity-100"
+            title="Make captain"
+            className="rounded-full border border-[var(--accent)] px-2 py-0.5 text-xs font-semibold text-[var(--accent)] transition hover:bg-[var(--accent)] hover:text-[var(--accent-contrast)]"
           >
-            {player.isCaptain ? "★" : "☆"}
+            Make captain
           </button>
+        )}
+
+        {showCaptainToggle && player.isCaptain && (
+          <span className="rounded-full border border-[var(--accent)]/40 px-2 py-0.5 text-xs font-semibold text-[var(--accent)]">
+            Captain
+          </span>
         )}
 
         {/* Kick player (leader/admin) */}
@@ -686,7 +718,7 @@ function PlayerRow({
           <button
             onClick={onKick}
             title="Kick player"
-            className="rounded px-1.5 py-0.5 text-xs text-[var(--muted)] opacity-0 transition hover:bg-[var(--danger)]/10 hover:text-[var(--danger)] group-hover:opacity-100"
+            className="rounded px-1.5 py-0.5 text-xs text-[var(--muted)] transition hover:bg-[var(--danger)]/10 hover:text-[var(--danger)]"
           >
             Kick
           </button>
@@ -706,7 +738,7 @@ function PlayerRow({
         {extraAction && (
           <button
             onClick={extraAction.onClick}
-            className="rounded px-1.5 py-0.5 text-xs text-[var(--muted)] opacity-0 transition hover:bg-[var(--danger)]/10 hover:text-[var(--danger)] group-hover:opacity-100"
+            className="rounded px-1.5 py-0.5 text-xs text-[var(--muted)] transition hover:bg-[var(--danger)]/10 hover:text-[var(--danger)]"
           >
             {extraAction.label}
           </button>
