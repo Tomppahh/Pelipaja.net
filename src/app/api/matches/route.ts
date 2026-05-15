@@ -31,6 +31,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "teamSize must be between 1 and 10" }, { status: 400 });
   }
 
+  const existingLobby = await Lobby.findOne({ "players.steamId": user.steamId }).select("matchId");
+  if (existingLobby) {
+    return NextResponse.json(
+      { error: "You are already in a lobby.", matchId: existingLobby.matchId.toString() },
+      { status: 409 }
+    );
+  }
+
   // One active match per non-admin user
   if (user.role !== "admin") {
     const existing = await Match.findOne({
