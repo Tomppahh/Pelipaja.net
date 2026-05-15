@@ -20,11 +20,16 @@ export default async function Home() {
 				<h1 className='font-display text-5xl font-bold text-[var(--foreground)]'>Pelipaja.net</h1>
                 
 				{user && hasRole(user.role, lobby) && <a className="mt-16 inline-block rounded-lg bg-[var(--accent)] px-6 py-3 font-bold text-[var(--accent-contrast)] shadow-lg transition hover:brightness-110" href="/match">
-					CREATE MATCH
+					CREATE LOBBY
 				</a>}
-
+				{user && hasRole(user.role, lobby) && <a className="mt-16 inline-block rounded-lg bg-[var(--accent)] px-6 py-3 font-bold text-[var(--accent-contrast)] shadow-lg transition hover:brightness-110" href="/match/new/cs2">
+					CREATE SERVER
+				</a>}
 				{myMatchId && (
-					<a className="mt-4 inline-block text-sm text-[var(--foreground)] underline" href={`/match/${myMatchId}`}>Go to my match</a>
+					<a className="mt-4 inline-block text-sm text-[var(--foreground)] underline" href={`/match/${myMatchId}`}>Go to my Server</a>
+				)}
+				{myMatchId && (
+					<a className="mt-4 inline-block text-sm text-[var(--foreground)] underline" href={`/match/${myMatchId}/lobby`}>Go to my Lobby</a>
 				)}
                         
 			</main>
