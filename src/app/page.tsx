@@ -27,7 +27,7 @@ export default async function Home() {
 					<a className="mt-4 inline-block text-sm text-[var(--foreground)] underline" href={`/match/${myMatchId}/lobby`}>Go to my Lobby</a>
 				)}
 				<h4 className='font-display text-l font-bold  pt-50 text-[var(--foreground)]'>Create custom CS2 Matches with your friends!</h4> 
-                <h4 className='font-display text-l font-bold  pt-50 text-[var(--foreground)]'>Login with Steam to create or join a lobby</h4>       
+                <h4 className='font-display text-l font-bold  text-[var(--foreground)]'>Login with Steam to create or join a lobby</h4>       
 			</main>
 		</>
 	);
