@@ -23,6 +23,13 @@ export type LobbySettings = {
   mapPool?: string[];
 };
 
+export type LobbyMessage = {
+  steamId: string;
+  displayName: string;
+  text: string;
+  createdAt: Date;
+};
+
 export type VetoEntry = {
   team: Team;
   map: string;
@@ -48,6 +55,7 @@ export interface ILobby extends Document {
   phase: LobbyPhase;
   players: LobbyPlayer[];
   settings: LobbySettings;
+  messages: LobbyMessage[];
   coinFlipWinner?: Team;
   mapVetoState?: MapVetoState;
   captainPickState?: CaptainPickState;
@@ -95,6 +103,16 @@ const PlayerSchema = new Schema<LobbyPlayer>(
   { _id: false }
 );
 
+const MessageSchema = new Schema<LobbyMessage>(
+  {
+    steamId: { type: String, required: true },
+    displayName: { type: String, required: true },
+    text: { type: String, required: true, maxlength: 200 },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
 // ─── Main schema ──────────────────────────────────────────────────────────────
 
 const LobbySchema = new Schema<ILobby>(
@@ -108,6 +126,7 @@ const LobbySchema = new Schema<ILobby>(
       mode: { type: String, default: "use_current_teams" },
       mapPool: { type: [String], default: CS2_MAPS },
     },
+    messages: { type: [MessageSchema], default: [] },
     coinFlipWinner: { type: String, enum: ["team1", "team2"] },
     mapVetoState: { type: MapVetoStateSchema },
     captainPickState: { type: CaptainPickStateSchema },
