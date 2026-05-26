@@ -558,7 +558,7 @@ export default function LobbyPage() {
       )}
 
       {/* Chat */}
-      <div className="fixed bottom-6 right-4 z-50 sm:bottom-8 sm:right-5">
+      <div className="fixed bottom-6 right-4 z-50 sm:bottom-5 sm:right-5">
         <div className="relative flex w-[min(92vw,360px)] flex-col items-end gap-3">
           {chatOpen && (
             <section className="absolute bottom-full mb-3 flex h-[50vh] w-full flex-col rounded-2xl border border-[var(--border)] bg-[var(--surface)]/95 shadow-2xl backdrop-blur">
