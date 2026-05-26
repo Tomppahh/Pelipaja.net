@@ -1,5 +1,7 @@
-// Lobby modes for in-lobby settings
 "use client";
+
+// ── Lobby modes ───────────────────────────────────────────────────────────────
+
 const LOBBY_MODES = [
   { id: "use_current_teams", label: "Use Current Teams" },
   { id: "captain_pick",      label: "Captain Pick" },
@@ -8,8 +10,9 @@ const LOBBY_MODES = [
 ] as const;
 type LobbyMode = (typeof LOBBY_MODES)[number]["id"];
 
+// ── Imports ───────────────────────────────────────────────────────────────────
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useMemo, useEffect, useRef, useState, type FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card } from "@/src/app/components/ui/card";
 import { Button } from "@/src/app/components/ui/button";
@@ -17,7 +20,7 @@ import { Muted, PageTitle } from "@/src/app/components/ui/typography";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Team = "team1" | "team2" | "none";
+type Team  = "team1" | "team2" | "none";
 type Phase = "waiting" | "ready_check" | "captain_pick" | "map_veto" | "starting";
 
 interface MatchData {
@@ -25,10 +28,6 @@ interface MatchData {
   connectionIp?: string;
   connectionPort?: number;
   map?: string;
-  mode?: string;
-  isOwner?: boolean;
-  isAdmin?: boolean;
-  canCancel?: boolean;
 }
 
 interface LobbyPlayer {
@@ -51,15 +50,14 @@ interface Lobby {
   matchId: string;
   leaderId: string;
   players: LobbyPlayer[];
-  messages: LobbyMessage[];
+  messages?: LobbyMessage[];
   settings: { teamSize: number; mode: string; mapPool?: string[] };
   phase: Phase;
-  coinFlipWinner?: "team1" | "team2";
-  captainPickState?: { currentTurn: "team1" | "team2"; unpickedPlayers: string[] };
+  captainPickState?: { currentTurn: Team; unpickedPlayers: string[] };
   mapVetoState?: {
     remainingMaps: string[];
-    vetoHistory: { team: "team1" | "team2"; map: string; action: "ban" | "pick" }[];
-    currentTurn: "team1" | "team2";
+    vetoHistory: { team: Team; map: string; action: "ban" | "pick" }[];
+    currentTurn: Team;
   };
 }
 
@@ -85,50 +83,81 @@ const IS_DEV = process.env.NODE_ENV === "development";
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function LobbyPage() {
-  const { id } = useParams<{ id: string }>();
-  const router = useRouter();
-  const [lobby, setLobby] = useState<Lobby | null>(null);
-  const [match, setMatch] = useState<MatchData | null>(null);
-  const [mySteamId, setMySteamId] = useState<string | null>(null);
-  const [myRole, setMyRole] = useState<string | null>(null);
-  const [error, setError] = useState("");
-  const joinedRef = useRef(false);
-  const lastLobbyEventRef = useRef(Date.now());
-  const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  const { id }   = useParams<{ id: string }>();
+  const router   = useRouter();
 
-  // Lobby settings state
-  const [settingsMode, setSettingsMode] = useState<LobbyMode>("use_current_teams");
+  const [lobby,      setLobby]      = useState<Lobby | null>(null);
+  const [match,      setMatch]      = useState<MatchData | null>(null);
+  const [mySteamId,  setMySteamId]  = useState<string | null>(null);
+  const [myRole,     setMyRole]     = useState<string | null>(null);
+  const [error,      setError]      = useState("");
+  const [chatOpen,   setChatOpen]   = useState(false);
+  const [chatDraft,  setChatDraft]  = useState("");
+
+  // Lobby settings (controlled, synced from lobby state)
+  const [settingsMode,     setSettingsMode]     = useState<LobbyMode>("use_current_teams");
   const [settingsTeamSize, setSettingsTeamSize] = useState(5);
-  const [settingsSaving, setSettingsSaving] = useState(false);
-  const [chatDraft, setChatDraft] = useState("");
-  const [chatSending, setChatSending] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
-  const [chatPulse, setChatPulse] = useState(true);
+  const [settingsSaving,   setSettingsSaving]   = useState(false);
 
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const joinedRef     = useRef(false);
+
+  // ── Derived ─────────────────────────────────────────────────────────────
+
+  const me         = lobby?.players.find(p => p.steamId === mySteamId);
+  const isLeader   = lobby?.leaderId === mySteamId;
+  const isAdmin    = myRole === "admin";
+  const leader     = lobby?.players.find(p => p.steamId === lobby.leaderId);
+  const team1      = useMemo(() => lobby?.players.filter(p => p.team === "team1") ?? [], [lobby?.players]);
+  const team2      = useMemo(() => lobby?.players.filter(p => p.team === "team2") ?? [], [lobby?.players]);
+  const unassigned = useMemo(() => lobby?.players.filter(p => p.team === "none")  ?? [], [lobby?.players]);
+
+  const playersBySteamId = useMemo(
+    () => new Map((lobby?.players ?? []).map(p => [p.steamId, p])),
+    [lobby?.players],
+  );
+
+  const isServerReady  = match?.status === "ready" || match?.status === "live";
+  const connectString  = match?.connectionIp && match?.connectionPort
+    ? `connect ${match.connectionIp}:${match.connectionPort}` : null;
+  const readyMap       = match?.map ?? lobby?.mapVetoState?.remainingMaps?.[0] ?? lobby?.settings.mapPool?.[0];
+
+  const isMyCaptainTurn =
+    lobby?.phase === "captain_pick" &&
+    me?.isCaptain &&
+    me.team === lobby.captainPickState?.currentTurn;
+
+  const isMyVetoTurn =
+    lobby?.phase === "map_veto" &&
+    me?.isCaptain &&
+    me.team === lobby.mapVetoState?.currentTurn;
+
+  const team1Captain = team1.find(p => p.isCaptain);
+  const team2Captain = team2.find(p => p.isCaptain);
+  const team1Label   = `Team ${team1Captain?.displayName ?? "1"}`;
+  const team2Label   = `Team ${team2Captain?.displayName ?? "2"}`;
+
+  const canEditSettings = lobby?.phase === "waiting" && (isLeader || isAdmin);
+  const canCancel       = isLeader || isAdmin;
+  const cancelLabel     = isServerReady ? "Close Server" : "Cancel Match";
+
+  // ── Effects ──────────────────────────────────────────────────────────────
+
+  // Sync settings form when lobby settings change
   useEffect(() => {
     if (!lobby) return;
     setSettingsMode(lobby.settings.mode as LobbyMode);
     setSettingsTeamSize(lobby.settings.teamSize);
   }, [lobby?.settings.mode, lobby?.settings.teamSize]);
 
-  const lobbyMessages = lobby?.messages ?? [];
-
+  // Scroll chat to bottom on new messages
   useEffect(() => {
-    if (!chatScrollRef.current) return;
-    chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
-  }, [lobbyMessages.length]);
-
-  useEffect(() => {
-    if (chatOpen) {
-      setChatPulse(false);
-      return;
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
     }
+  }, [lobby?.messages?.length]);
 
-    const timeout = window.setTimeout(() => setChatPulse(false), 7000);
-    return () => window.clearTimeout(timeout);
-  }, [chatOpen]);
-
-  // Join once on mount
+  // Join lobby once on mount
   useEffect(() => {
     if (joinedRef.current) return;
     joinedRef.current = true;
@@ -148,150 +177,70 @@ export default function LobbyPage() {
       .catch(() => {});
   }, [id]);
 
-  // Auto-leave when tab/window closes
-  useEffect(() => {
-    const handleUnload = () => {
-      // Intentionally do not remove players on unload to allow quick reconnects
-    };
-    window.addEventListener("beforeunload", handleUnload);
-    return () => window.removeEventListener("beforeunload", handleUnload);
-  }, [id]);
-
   // SSE — live lobby state
   useEffect(() => {
     const es = new EventSource(`/api/matches/${id}/lobby/events`);
 
-    const markAlive = () => {
-      lastLobbyEventRef.current = Date.now();
-      setError(current => (current === "Lost connection to lobby. Refresh to reconnect." ? "" : current));
-    };
-
-    const staleTimer = window.setInterval(() => {
-      if (Date.now() - lastLobbyEventRef.current > 10 * 60 * 1000) {
-        setError("Lost connection to lobby. Refresh to reconnect.");
-        es.close();
-        window.clearInterval(staleTimer);
-      }
-    }, 30000);
-
     es.onmessage = (e) => {
       try {
-        markAlive();
         const data = JSON.parse(e.data);
         if (data.heartbeat) return;
-        if (data.closed) { setError("This lobby has been closed."); es.close(); return; }
+        if (data.closed)    { setError("This lobby has been closed."); es.close(); return; }
         setLobby(data);
       } catch { /* malformed frame */ }
     };
-    es.onerror = () => {
-      // Allow EventSource to reconnect; the stale timer handles persistent loss.
-    };
-    return () => {
-      window.clearInterval(staleTimer);
-      es.close();
-    };
+
+    es.onerror = () => setError("Lost connection to lobby. Refresh to reconnect.");
+
+    return () => es.close();
   }, [id]);
 
-  // Match state — server start / ready state
+  // Poll match state every 3 s
   useEffect(() => {
     let active = true;
 
-    const fetchMatch = async () => {
-      try {
-        const res = await fetch(`/api/matches/${id}`);
-        const data = await res.json();
-        if (!active || !res.ok) return;
-        setMatch(data);
-      } catch {
-        // next poll will retry
-      }
-    };
+    const fetchMatch = () =>
+      fetch(`/api/matches/${id}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (active && data) setMatch(data); })
+        .catch(() => {});
 
     fetchMatch();
-
     const interval = setInterval(fetchMatch, 3000);
-    return () => {
-      active = false;
-      clearInterval(interval);
-    };
+    return () => { active = false; clearInterval(interval); };
   }, [id]);
 
-  // ── Derived ───────────────────────────────────────────────────────────────
-
-  const me       = lobby?.players.find(p => p.steamId === mySteamId);
-  const isLeader = lobby?.leaderId === mySteamId;
-  const isAdmin  = myRole === "admin";
-  const team1    = lobby?.players.filter(p => p.team === "team1") ?? [];
-  const team2    = lobby?.players.filter(p => p.team === "team2") ?? [];
-  const unassigned = lobby?.players.filter(p => p.team === "none") ?? [];
-  const isServerReady = match?.status === "ready" || match?.status === "live";
-  const connectString = match?.connectionIp && match?.connectionPort
-    ? `connect ${match.connectionIp}:${match.connectionPort}`
-    : null;
-  const readyMap = match?.map ?? lobby?.mapVetoState?.remainingMaps?.[0] ?? lobby?.settings.mapPool?.[0];
-
-  const isMyCaptainTurn =
-    lobby?.phase === "captain_pick" &&
-    lobby.captainPickState?.currentTurn &&
-    me?.isCaptain &&
-    me.team === lobby.captainPickState.currentTurn;
-
-  const isMyVetoTurn =
-    lobby?.phase === "map_veto" &&
-    lobby.mapVetoState?.currentTurn &&
-    me?.isCaptain &&
-    me.team === lobby.mapVetoState.currentTurn;
-
-  const leader = lobby?.players.find(p => p.steamId === lobby.leaderId);
-
-  const canEditLobbySettings = lobby?.phase === "waiting" && (isLeader || isAdmin);
-  const canCancelMatch = !!match && (lobby ? (isLeader || isAdmin) : !!match.canCancel);
-  const cancelLabel = match?.status === "ready" || match?.status === "live"
-    ? "Close Server"
-    : "Cancel Match";
-  const team1Captain = team1.find(p => p.isCaptain);
-  const team2Captain = team2.find(p => p.isCaptain);
-  const team1Label = `Team ${team1Captain?.displayName ?? "1"}`;
-  const team2Label = `Team ${team2Captain?.displayName ?? "2"}`;
-
-  // Auto-advance captain pick when teams are full and no unassigned players remain
+  // Auto-advance captain pick when all players are assigned
   useEffect(() => {
     if (
       lobby?.phase === "captain_pick" &&
       isLeader &&
       unassigned.length === 0 &&
-      team1.length >= (lobby?.settings.teamSize ?? Infinity) &&
-      team2.length >= (lobby?.settings.teamSize ?? Infinity)
+      team1.length >= (lobby.settings.teamSize ?? Infinity) &&
+      team2.length >= (lobby.settings.teamSize ?? Infinity)
     ) {
-      action("captain_pick_complete");
+      lobbyAction("captain_pick_complete");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lobby?.phase, unassigned.length, team1.length, team2.length]);
 
-  // ── Actions ───────────────────────────────────────────────────────────────
+  // ── Actions ──────────────────────────────────────────────────────────────
 
-  async function action(name: string, extra?: Record<string, unknown>) {
+  async function lobbyAction(name: string, extra?: Record<string, unknown>) {
     try {
-      const res = await fetch(`/api/matches/${id}/lobby`, {
+      const res  = await fetch(`/api/matches/${id}/lobby`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: name, ...extra }),
       });
-
       const data = await res.json().catch(() => null);
+
       if (!res.ok) {
-        const message = (data && typeof data === "object" && "error" in data)
-          ? String((data as { error?: unknown }).error)
-          : "Something went wrong";
-        setError(message);
+        setError(data?.error ?? "Something went wrong");
         return false;
       }
 
-      const maybeLobby = data as Partial<Lobby> | null;
-      if (maybeLobby && typeof maybeLobby === "object" && Array.isArray(maybeLobby.players)) {
-        setLobby(maybeLobby as Lobby);
-      }
-
+      if (data && Array.isArray(data.players)) setLobby(data as Lobby);
       return true;
     } catch {
       setError("Request failed. Check your connection and try again.");
@@ -301,58 +250,33 @@ export default function LobbyPage() {
 
   async function saveLobbySettings() {
     setSettingsSaving(true);
-    try {
-      await action("update_settings", {
-        settings: {
-          mode: settingsMode,
-          teamSize: settingsTeamSize,
-        },
-      });
-    } finally {
-      setSettingsSaving(false);
-    }
+    await lobbyAction("update_settings", { settings: { mode: settingsMode, teamSize: settingsTeamSize } });
+    setSettingsSaving(false);
   }
 
   async function cancelMatch() {
     if (!confirm("Cancel this match and close the server?")) return;
-
-    const res = await fetch(`/api/matches/${id}/cancel`, { method: "POST" });
-    if (res.ok) {
-      router.push("/");
-      return;
-    }
-
+    const res  = await fetch(`/api/matches/${id}/cancel`, { method: "POST" });
     const data = await res.json().catch(() => ({}));
-    setError(data.error ?? "Failed to cancel match");
+    if (res.ok) router.push("/");
+    else setError(data.error ?? "Failed to cancel match");
   }
 
   async function leaveLobby() {
-    const isLeader = lobby?.leaderId === mySteamId;
-    const otherPlayers = lobby?.players.filter(p => p.steamId !== mySteamId) ?? [];
+    const others     = lobby?.players.filter(p => p.steamId !== mySteamId) ?? [];
     const actionName = isLeader
-      ? otherPlayers.length > 0 ? "leave_lobby_and_promote" : "leave_lobby_and_close"
+      ? others.length > 0 ? "leave_lobby_and_promote" : "leave_lobby_and_close"
       : "leave_lobby";
-    await action(actionName);
+    await lobbyAction(actionName);
     router.push("/match");
   }
 
-  async function transferLeader(targetSteamId: string) {
-    await action("transfer_leader", { targetSteamId });
-  }
-
-  async function sendChatMessage(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
+  async function sendChat(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     const text = chatDraft.trim();
-    if (!text || chatSending) return;
-
-    setChatSending(true);
-    try {
-      const ok = await action("chat", { text });
-      if (ok) setChatDraft("");
-    } finally {
-      setChatSending(false);
-    }
+    if (!text) return;
+    const ok = await lobbyAction("chat", { text });
+    if (ok) setChatDraft("");
   }
 
   async function devForceReady() {
@@ -361,7 +285,7 @@ export default function LobbyPage() {
     else setError("Dev force-ready failed");
   }
 
-  // ── Loading / error ───────────────────────────────────────────────────────
+  // ── Early returns ─────────────────────────────────────────────────────────
 
   if (error) return (
     <main className="mx-auto flex min-h-[calc(100vh-88px)] w-full max-w-2xl items-center justify-center px-4 py-8">
@@ -382,7 +306,8 @@ export default function LobbyPage() {
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
 
-      {canEditLobbySettings && (
+      {/* Lobby settings */}
+      {canEditSettings && (
         <section className="mb-8 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 p-8 shadow-2xl backdrop-blur">
           <h2 className="mb-2 font-display text-2xl font-bold tracking-tight text-[var(--foreground)]">Lobby Settings</h2>
           <p className="text-sm text-[var(--muted)]">Update the lobby before starting the ready check.</p>
@@ -390,31 +315,30 @@ export default function LobbyPage() {
           <div className="mt-6">
             <p className="mb-2 text-sm text-[var(--muted)]">Lobby mode</p>
             <div className="flex flex-wrap gap-2">
-            {LOBBY_MODES.map((mode) => (
-              <button
-                key={mode.id}
-                onClick={() => setSettingsMode(mode.id)}
-                className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
-                  settingsMode === mode.id
-                    ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
-                    : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
-                }`}
-              >
-                {mode.label}
-              </button>
-            ))}
+              {LOBBY_MODES.map(mode => (
+                <button
+                  key={mode.id}
+                  onClick={() => setSettingsMode(mode.id)}
+                  className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
+                    settingsMode === mode.id
+                      ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+                      : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
+                  }`}
+                >
+                  {mode.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="mt-6">
+          <div className="mt-6 flex items-center gap-3">
             <span className="text-sm text-[var(--muted)]">Players per team</span>
             <input
               type="number"
-              min={1}
-              max={10}
+              min={1} max={10}
               value={settingsTeamSize}
               onChange={e => setSettingsTeamSize(Number(e.target.value))}
-              className="ml-2 w-20 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              className="w-20 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
             />
           </div>
 
@@ -424,9 +348,9 @@ export default function LobbyPage() {
               disabled={settingsSaving}
               className="rounded-lg border border-[var(--accent-2)] bg-[var(--accent-2)] px-6 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {settingsSaving ? "Saving..." : "Save Lobby Settings"}
+              {settingsSaving ? "Saving…" : "Save Settings"}
             </button>
-            <span className="text-sm text-[var(--muted)]">Changes apply immediately to the active lobby.</span>
+            <span className="text-sm text-[var(--muted)]">Changes apply immediately.</span>
           </div>
         </section>
       )}
@@ -440,16 +364,17 @@ export default function LobbyPage() {
             Lobby leader: <span className="font-semibold text-[var(--foreground)]">{leader?.displayName ?? lobby.leaderId}</span>
           </p>
         </div>
+
         <div className="flex shrink-0 flex-wrap gap-2">
           {(lobby.phase === "waiting" || lobby.phase === "ready_check") && me && !me.isReady && (
-            <Button onClick={() => action("ready")}>Ready Up</Button>
+            <Button onClick={() => lobbyAction("ready")}>Ready Up</Button>
           )}
           {lobby.phase === "waiting" && isLeader && (
-            <Button variant="secondary" onClick={() => action("start_ready_check")}>
+            <Button variant="secondary" onClick={() => lobbyAction("start_ready_check")}>
               Start Ready Check
             </Button>
           )}
-          {canCancelMatch && (
+          {match && canCancel && (
             <button
               onClick={cancelMatch}
               className="rounded-lg border border-[var(--danger)]/50 px-4 py-2 text-sm font-semibold text-[var(--danger)] transition hover:bg-[var(--danger)]/10"
@@ -466,33 +391,29 @@ export default function LobbyPage() {
         </div>
       </div>
 
-      {match && !isServerReady && lobby.phase === "starting" && (match.status === "pending" || match.status === "configuring") && (
+      {/* Server creating */}
+      {!isServerReady && lobby.phase === "starting" && (
         <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
-          <PageTitle className="text-xl">Creating Server...</PageTitle>
+          <PageTitle className="text-xl">Creating Server…</PageTitle>
           <Muted className="mt-1">Please wait while the server starts.</Muted>
           {readyMap && (
-            <p className="mt-3 text-sm text-[var(--foreground)]">
-              Map: <span className="font-semibold text-[var(--accent)]">{readyMap}</span>
-            </p>
+            <p className="mt-3 text-sm">Map: <span className="font-semibold text-[var(--accent)]">{readyMap}</span></p>
           )}
         </div>
       )}
 
+      {/* Server ready */}
       {isServerReady && connectString && (
         <div className="mt-4 rounded-lg border border-[var(--accent)]/30 bg-[var(--accent)]/10 px-4 py-3">
           <PageTitle className="text-xl">Server Ready</PageTitle>
           {readyMap && (
-            <p className="mt-1 text-sm text-[var(--foreground)]">
-              Map: <span className="font-semibold text-[var(--accent)]">{readyMap}</span>
-            </p>
+            <p className="mt-1 text-sm">Map: <span className="font-semibold text-[var(--accent)]">{readyMap}</span></p>
           )}
-          <code className="mt-3 block rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)]">
+          <code className="mt-3 block rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm">
             {connectString}
           </code>
           <div className="mt-3 flex items-center gap-3">
-            <Button variant="secondary" onClick={() => navigator.clipboard.writeText(connectString)}>
-              Copy
-            </Button>
+            <Button variant="secondary" onClick={() => navigator.clipboard.writeText(connectString)}>Copy</Button>
             <a href={`steam://connect/${match.connectionIp}:${match.connectionPort}`}>
               <Button>Connect via Steam</Button>
             </a>
@@ -520,15 +441,13 @@ export default function LobbyPage() {
             ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]"
             : "border-[var(--border)] bg-[var(--surface)] text-[var(--muted)]"
         }`}>
-          {isMyVetoTurn
-            ? "Your turn — ban a map."
-            : `Waiting for ${lobby.mapVetoState.currentTurn === "team1" ? "Team 1" : "Team 2"} captain to ban…`}
+          {isMyVetoTurn ? "Your turn — ban a map." : `Waiting for ${lobby.mapVetoState.currentTurn === "team1" ? "Team 1" : "Team 2"} captain to ban…`}
           <div className="mt-2 flex flex-wrap gap-2">
             {lobby.mapVetoState.remainingMaps.map(map => (
               <button
                 key={map}
                 disabled={!isMyVetoTurn}
-                onClick={() => action("map_veto", { map, vetoAction: "ban" })}
+                onClick={() => lobbyAction("map_veto", { map, vetoAction: "ban" })}
                 className="rounded border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-xs font-semibold transition hover:border-red-500 hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {map}
@@ -538,63 +457,50 @@ export default function LobbyPage() {
           {lobby.mapVetoState.vetoHistory.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-1.5">
               {lobby.mapVetoState.vetoHistory.map((v, i) => (
-                <span key={i} className="rounded bg-red-500/10 px-2 py-0.5 text-xs text-red-400 line-through">
-                  {v.map}
-                </span>
+                <span key={i} className="rounded bg-red-500/10 px-2 py-0.5 text-xs text-red-400 line-through">{v.map}</span>
               ))}
             </div>
           )}
         </div>
       )}
 
-      {/* Dev panel */}
+      {/* Dev tools */}
       {IS_DEV && isAdmin && (
         <div className="mt-4 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3">
           <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-yellow-400">Dev Tools</p>
           <div className="flex flex-wrap gap-2">
-            {(["Force Server Ready", "Fill with Bots", "Clear Bots", "Shuffle Teams"] as const).map((label) => {
-              const actionMap: Record<string, string> = {
-                "Force Server Ready": "__dev_ready",
-                "Fill with Bots": "fill_bots",
-                "Clear Bots": "clear_bots",
-                "Shuffle Teams": "shuffle",
-              };
-              return (
-                <button
-                  key={label}
-                  onClick={() => label === "Force Server Ready" ? devForceReady() : action(actionMap[label])}
-                  className="rounded border border-yellow-500 px-3 py-1.5 text-xs font-semibold text-yellow-400 transition hover:bg-yellow-500 hover:text-black"
-                >
-                  {label}
-                </button>
-              );
-            })}
+            {([
+              ["Force Server Ready", devForceReady],
+              ["Fill with Bots",     () => lobbyAction("fill_bots")],
+              ["Clear Bots",         () => lobbyAction("clear_bots")],
+              ["Shuffle Teams",      () => lobbyAction("shuffle")],
+            ] as [string, () => void][]).map(([label, fn]) => (
+              <button
+                key={label}
+                onClick={fn}
+                className="rounded border border-yellow-500 px-3 py-1.5 text-xs font-semibold text-yellow-400 transition hover:bg-yellow-500 hover:text-black"
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
       )}
 
-      {/* Main grid: Team 1 | Unassigned | Team 2 */}
+      {/* Team grid */}
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-
-        {/* Team 1 */}
         <TeamPanel
-          label={team1Label}
-          team="team1"
-          players={team1}
-          teamSize={lobby.settings.teamSize}
-          mySteamId={mySteamId}
-          isLeader={isLeader}
-          phase={lobby.phase}
-          myTeam={me?.team ?? "none"}
-          isMyCaptainTurn={!!isMyCaptainTurn}
-          onJoin={() => action("join_team", { team: "team1" })}
-          onLeaveTeam={() => action("leave_team")}
-          onSetCaptain={(steamId) => action("set_captain", { targetSteamId: steamId })}
-          isAdmin={isAdmin}
-          onKick={(steamId) => action("kick_player", { targetSteamId: steamId })}
+          label={team1Label} team="team1" players={team1}
+          teamSize={lobby.settings.teamSize} mySteamId={mySteamId}
+          isLeader={isLeader} isAdmin={isAdmin} phase={lobby.phase}
+          myTeam={me?.team ?? "none"} isMyCaptainTurn={!!isMyCaptainTurn}
           leaderId={lobby.leaderId}
-          onTransferLeader={transferLeader}
-          onCaptainPick={(steamId) => action("captain_pick", { pickedSteamId: steamId })}
+          onJoin={()             => lobbyAction("join_team", { team: "team1" })}
+          onLeaveTeam={()        => lobbyAction("leave_team")}
+          onSetCaptain={steamId  => lobbyAction("set_captain", { targetSteamId: steamId })}
+          onKick={steamId        => lobbyAction("kick_player", { targetSteamId: steamId })}
+          onTransferLeader={sid  => lobbyAction("transfer_leader", { targetSteamId: sid })}
+          onCaptainPick={steamId => lobbyAction("captain_pick", { pickedSteamId: steamId })}
         />
 
         {/* Unassigned */}
@@ -607,52 +513,42 @@ export default function LobbyPage() {
             ? <Muted className="text-xs">—</Muted>
             : unassigned.map(p => (
                 <PlayerRow
-                  key={p.steamId}
-                  player={p}
+                  key={p.steamId} player={p}
                   isMe={p.steamId === mySteamId}
-                  isLeader={isLeader}
+                  isLeader={isLeader} isAdmin={isAdmin}
                   showCaptainToggle={false}
                   pickable={!!isMyCaptainTurn}
-                  onPick={() => action("captain_pick", { pickedSteamId: p.steamId })}
-                  onSetCaptain={() => {}}
-                  showKickToggle={isLeader || isAdmin}
-                  onKick={() => action("kick_player", { targetSteamId: p.steamId })}
+                  onPick={()           => lobbyAction("captain_pick", { pickedSteamId: p.steamId })}
+                  onSetCaptain={()     => {}}
+                  onKick={()           => lobbyAction("kick_player", { targetSteamId: p.steamId })}
+                  onTransferLeader={() => lobbyAction("transfer_leader", { targetSteamId: p.steamId })}
                   leaderId={lobby.leaderId}
-                  showLeaderAction={isLeader || isAdmin}
-                  onTransferLeader={() => transferLeader(p.steamId)}
                 />
               ))
           }
         </div>
 
-        {/* Team 2 */}
         <TeamPanel
-          label={team2Label}
-          team="team2"
-          players={team2}
-          teamSize={lobby.settings.teamSize}
-          mySteamId={mySteamId}
-          isLeader={isLeader}
-          phase={lobby.phase}
-          myTeam={me?.team ?? "none"}
-          isMyCaptainTurn={!!isMyCaptainTurn}
-          onJoin={() => action("join_team", { team: "team2" })}
-          onLeaveTeam={() => action("leave_team")}
-          onSetCaptain={(steamId) => action("set_captain", { targetSteamId: steamId })}
-          isAdmin={isAdmin}
-          onKick={(steamId) => action("kick_player", { targetSteamId: steamId })}
+          label={team2Label} team="team2" players={team2}
+          teamSize={lobby.settings.teamSize} mySteamId={mySteamId}
+          isLeader={isLeader} isAdmin={isAdmin} phase={lobby.phase}
+          myTeam={me?.team ?? "none"} isMyCaptainTurn={!!isMyCaptainTurn}
           leaderId={lobby.leaderId}
-          onTransferLeader={transferLeader}
-          onCaptainPick={(steamId) => action("captain_pick", { pickedSteamId: steamId })}
+          onJoin={()             => lobbyAction("join_team", { team: "team2" })}
+          onLeaveTeam={()        => lobbyAction("leave_team")}
+          onSetCaptain={steamId  => lobbyAction("set_captain", { targetSteamId: steamId })}
+          onKick={steamId        => lobbyAction("kick_player", { targetSteamId: steamId })}
+          onTransferLeader={sid  => lobbyAction("transfer_leader", { targetSteamId: sid })}
+          onCaptainPick={steamId => lobbyAction("captain_pick", { pickedSteamId: steamId })}
         />
       </div>
 
-      {/* Map pool (waiting/ready phases only) */}
-      {lobby.settings.mapPool && lobby.settings.mapPool.length > 0 && lobby.phase === "waiting" && (
+      {/* Map pool */}
+      {lobby.phase === "waiting" && (lobby.settings.mapPool?.length ?? 0) > 0 && (
         <div className="mt-8">
           <p className="text-xs font-semibold uppercase tracking-widest text-[var(--muted)]">Map Pool</p>
           <div className="mt-2 flex flex-wrap gap-2">
-            {lobby.settings.mapPool.map(map => (
+            {lobby.settings.mapPool!.map(map => (
               <span key={map} className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-xs font-medium text-[var(--foreground)]">
                 {map}
               </span>
@@ -661,76 +557,69 @@ export default function LobbyPage() {
         </div>
       )}
 
-      <div className="fixed right-4 top-[104px] z-50 flex max-h-[78vh] w-[min(92vw,360px)] flex-col items-end gap-3 sm:right-5 sm:top-[112px]">
-        {chatOpen && (
-          <section className="flex h-[min(68vh,520px)] w-full flex-col rounded-2xl border border-[var(--border)] bg-[var(--surface)]/95 shadow-2xl backdrop-blur">
-            <div ref={chatScrollRef} className="flex-1 space-y-2 overflow-y-auto p-3">
-              {lobbyMessages.map((message, index) => {
-                const isMe = message.steamId === mySteamId;
-                const time = new Date(message.createdAt).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                });
+      {/* Chat */}
+      <div className="fixed bottom-6 right-4 z-50 sm:bottom-8 sm:right-5">
+        <div className="relative flex w-[min(92vw,360px)] flex-col items-end gap-3">
+          {chatOpen && (
+            <section className="absolute bottom-full mb-3 flex h-[60vh] w-full flex-col rounded-2xl border border-[var(--border)] bg-[var(--surface)]/95 shadow-2xl backdrop-blur">
+              <div ref={chatScrollRef} className="flex-1 space-y-2 overflow-y-auto p-3">
+                {(lobby.messages ?? []).map((msg, i) => {
+                  const sender = playersBySteamId.get(msg.steamId);
+                  const name   = sender?.displayName ?? msg.displayName;
+                  const avatar = sender?.avatarUrl;
+                  const time   = new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-                return (
-                  <article
-                    key={`${message.steamId}-${message.createdAt}-${index}`}
-                    className={`rounded-xl border px-3 py-2 ${
-                      isMe
-                        ? "border-[var(--accent)]/35 bg-[var(--accent)]/10"
-                        : "border-[var(--border)] bg-[var(--background)]/55"
-                    }`}
-                  >
-                    <div className="flex items-baseline justify-between gap-2">
-                      <p className="min-w-0 truncate text-xs font-semibold text-[var(--foreground)]">
-                        {message.displayName}
-                      </p>
-                      <span className="shrink-0 text-[11px] text-[var(--muted)]">{time}</span>
-                    </div>
-                    <p className="mt-1 whitespace-pre-wrap break-words text-sm text-[var(--foreground)]/90">{message.text}</p>
-                  </article>
-                );
-              })}
-            </div>
+                  return (
+                    <article key={i} className="flex gap-3 px-1 py-1">
+                      {avatar
+                        ? <img src={avatar} alt="" className="mt-0.5 h-9 w-9 shrink-0 rounded-full object-cover" />
+                        : <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--surface-hover)] text-xs font-semibold text-[var(--foreground)]/70">
+                            {name[0].toUpperCase()}
+                          </div>
+                      }
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-sm text-[var(--foreground)]/90">
+                            <span className="font-semibold text-[var(--foreground)]">{name}: </span>
+                            {msg.text}
+                          </p>
+                          <span className="shrink-0 pt-0.5 text-[11px] text-[var(--muted)]">{time}</span>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
 
-            <form onSubmit={sendChatMessage} className="flex items-end gap-2 border-t border-[var(--border)] p-3">
-              <textarea
-                value={chatDraft}
-                onChange={(e) => setChatDraft(e.target.value)}
-                maxLength={200}
-                rows={2}
-                placeholder="Message"
-                className="min-h-10 min-w-0 flex-1 resize-none rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
-              />
-              <button
-                type="submit"
-                disabled={chatSending || !chatDraft.trim()}
-                className="h-10 shrink-0 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-3 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {chatSending ? "..." : "Send"}
-              </button>
-            </form>
-          </section>
-        )}
+              <form onSubmit={sendChat} className="flex items-end gap-2 border-t border-[var(--border)] p-3">
+                <textarea
+                  value={chatDraft}
+                  onChange={e => setChatDraft(e.target.value)}
+                  maxLength={200} rows={2}
+                  placeholder="Message"
+                  className="min-h-10 min-w-0 flex-1 resize-none rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                />
+                <button
+                  type="submit"
+                  disabled={!chatDraft.trim()}
+                  className="h-10 shrink-0 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-3 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Send
+                </button>
+              </form>
+            </section>
+          )}
 
-        <button
-          onClick={() => setChatOpen((open) => !open)}
-          className={`inline-flex items-center gap-2 rounded-full border border-[var(--accent)] bg-[var(--accent)] px-5 py-3 text-base font-semibold text-[var(--accent-contrast)] shadow-lg transition hover:brightness-110 ${chatPulse ? "animate-pulse" : ""}`}
-        >
-          <svg
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-            className="h-5 w-5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+          <button
+            onClick={() => setChatOpen(o => !o)}
+            className="inline-flex items-center gap-2 rounded-full border border-[var(--accent)] bg-[var(--accent)] px-5 py-3 text-base font-semibold text-[var(--accent-contrast)] shadow-lg transition hover:brightness-110"
           >
-            <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H7l-4 3v-5.5A8.5 8.5 0 1 1 21 11.5Z" />
-          </svg>
-          {chatOpen ? "Hide Chat" : "Chat"}
-        </button>
+            <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H7l-4 3v-5.5A8.5 8.5 0 1 1 21 11.5Z" />
+            </svg>
+            {chatOpen ? "Hide Chat" : "Chat"}
+          </button>
+        </div>
       </div>
     </main>
   );
@@ -740,9 +629,8 @@ export default function LobbyPage() {
 
 function TeamPanel({
   label, team, players, teamSize, mySteamId, isLeader, isAdmin,
-  phase, myTeam, isMyCaptainTurn,
-  onJoin, onLeaveTeam, onSetCaptain, onKick, onCaptainPick,
-  leaderId, onTransferLeader,
+  phase, myTeam, isMyCaptainTurn, onJoin, onLeaveTeam, onSetCaptain,
+  onKick, onCaptainPick, leaderId, onTransferLeader,
 }: {
   label: string;
   team: Team;
@@ -762,7 +650,7 @@ function TeamPanel({
   leaderId: string;
   onTransferLeader: (steamId: string) => void;
 }) {
-  const canJoin = phase === "waiting" && myTeam !== team && players.length < teamSize;
+  const canJoin    = phase === "waiting" && myTeam !== team && players.length < teamSize;
   const amOnThisTeam = myTeam === team;
 
   return (
@@ -772,25 +660,22 @@ function TeamPanel({
         <span className="text-xs text-[var(--muted)]">{players.length}/{teamSize}</span>
       </div>
 
-      {isLeader || isAdmin ? (
-        <p className="text-[11px] text-[var(--muted)]">Use the captain button on a player to reassign that team’s captain.</p>
-      ) : null}
+      {(isLeader || isAdmin) && (
+        <p className="text-[11px] text-[var(--muted)]">Use the captain button on a player to reassign that team's captain.</p>
+      )}
 
       {players.map(p => (
         <PlayerRow
-          key={p.steamId}
-          player={p}
+          key={p.steamId} player={p}
           isMe={p.steamId === mySteamId}
-          isLeader={isLeader}
+          isLeader={isLeader} isAdmin={isAdmin}
           showCaptainToggle={phase === "waiting" && (isLeader || isAdmin)}
           pickable={false}
-          onPick={() => {}}
-          onSetCaptain={() => onSetCaptain(p.steamId)}
-          showKickToggle={isLeader || isAdmin}
-          onKick={() => onKick(p.steamId)}
-          leaderId={leaderId}
-          showLeaderAction={(isLeader || isAdmin) && p.steamId !== leaderId}
+          onPick={()           => {}}
+          onSetCaptain={()     => onSetCaptain(p.steamId)}
+          onKick={()           => onKick(p.steamId)}
           onTransferLeader={() => onTransferLeader(p.steamId)}
+          leaderId={leaderId}
           extraAction={
             p.steamId === mySteamId && amOnThisTeam && phase === "waiting"
               ? { label: "Leave team", onClick: onLeaveTeam }
@@ -805,7 +690,7 @@ function TeamPanel({
         </div>
       ))}
 
-      {canJoin && phase === "waiting" && (
+      {canJoin && (
         <button
           onClick={onJoin}
           className="mt-1 rounded-lg border border-[var(--accent)] px-3 py-2 text-xs font-semibold text-[var(--accent)] transition hover:bg-[var(--accent)] hover:text-[var(--accent-contrast)]"
@@ -820,28 +705,27 @@ function TeamPanel({
 // ── PlayerRow ─────────────────────────────────────────────────────────────────
 
 function PlayerRow({
-  player, isMe, isLeader, showCaptainToggle, pickable, onPick, onSetCaptain, extraAction, showKickToggle, onKick,
-  leaderId, showLeaderAction, onTransferLeader,
+  player, isMe, isLeader, isAdmin, showCaptainToggle, pickable,
+  onPick, onSetCaptain, extraAction, onKick, leaderId, onTransferLeader,
 }: {
   player: LobbyPlayer;
   isMe: boolean;
   isLeader: boolean;
+  isAdmin: boolean;
   showCaptainToggle: boolean;
   pickable: boolean;
   onPick: () => void;
   onSetCaptain: () => void;
   extraAction?: { label: string; onClick: () => void };
-  showKickToggle?: boolean;
-  onKick?: () => void;
+  onKick: () => void;
   leaderId: string;
-  showLeaderAction?: boolean;
-  onTransferLeader?: () => void;
+  onTransferLeader: () => void;
 }) {
+  const canManage = isLeader || isAdmin;
+
   return (
     <div className={`group flex min-h-[96px] flex-col justify-between rounded-lg border px-3 py-2.5 text-sm transition ${
-      isMe
-        ? "border-[var(--accent)]/40 bg-[var(--accent)]/10"
-        : "border-[var(--border)] bg-[var(--surface)]"
+      isMe ? "border-[var(--accent)]/40 bg-[var(--accent)]/10" : "border-[var(--border)] bg-[var(--surface)]"
     }`}>
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
@@ -851,8 +735,11 @@ function PlayerRow({
           }
           <p className="min-w-0 truncate font-medium text-[var(--foreground)]">{player.displayName}</p>
         </div>
-
-        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${player.isReady ? "border-green-500/40 bg-green-500/10 text-green-400" : "border-[var(--border)] text-[var(--muted)]"}`}>
+        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+          player.isReady
+            ? "border-green-500/40 bg-green-500/10 text-green-400"
+            : "border-[var(--border)] text-[var(--muted)]"
+        }`}>
           {player.isReady ? "Ready" : "Not ready"}
         </span>
       </div>
@@ -860,52 +747,38 @@ function PlayerRow({
       <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
         <div className="flex min-h-5 flex-wrap items-center gap-1.5">
           {player.isCaptain && (
-            <span className="rounded-full border border-[var(--accent)]/40 px-2 py-0.5 text-[11px] font-semibold text-[var(--accent)]">
-              Captain
-            </span>
+            <span className="rounded-full border border-[var(--accent)]/40 px-2 py-0.5 text-[11px] font-semibold text-[var(--accent)]">Captain</span>
           )}
           {player.steamId === leaderId && (
-            <span className="rounded-full border border-[var(--border)] px-2 py-0.5 text-[11px] text-[var(--foreground)]/70">
-              Leader
-            </span>
+            <span className="rounded-full border border-[var(--border)] px-2 py-0.5 text-[11px] text-[var(--foreground)]/70">Leader</span>
           )}
         </div>
 
         <div className="flex min-h-5 flex-wrap items-center justify-end gap-1.5">
-
-          {/* Leader: assign captain */}
           {showCaptainToggle && !player.isCaptain && (
             <button
               onClick={onSetCaptain}
-              title="Make captain"
               className="rounded-full border border-[var(--accent)] px-2 py-0.5 text-[11px] font-semibold text-[var(--accent)] transition hover:bg-[var(--accent)] hover:text-[var(--accent-contrast)]"
             >
               Make captain
             </button>
           )}
-
-          {/* Kick player (leader/admin) */}
-          {showKickToggle && !isMe && onKick && (
+          {canManage && !isMe && (
             <button
               onClick={onKick}
-              title="Kick player"
               className="rounded px-1.5 py-0.5 text-[11px] text-[var(--muted)] transition hover:bg-[var(--danger)]/10 hover:text-[var(--danger)]"
             >
               Kick
             </button>
           )}
-
-          {showLeaderAction && onTransferLeader && player.steamId !== leaderId && (
+          {canManage && player.steamId !== leaderId && (
             <button
               onClick={onTransferLeader}
-              title="Give lobby leader"
               className="rounded px-1.5 py-0.5 text-[11px] text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
             >
               Give leader
             </button>
           )}
-
-          {/* Captain pick: pick this player */}
           {pickable && player.team === "none" && (
             <button
               onClick={onPick}
@@ -914,8 +787,6 @@ function PlayerRow({
               Pick
             </button>
           )}
-
-          {/* Leave team */}
           {extraAction && (
             <button
               onClick={extraAction.onClick}
