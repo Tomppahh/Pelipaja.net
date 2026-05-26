@@ -463,6 +463,28 @@ async function mapVeto({ lobby, user, body, matchId }: ActionContext): Promise<N
   return NextResponse.json(lobby);
 }
 
+async function chat({ lobby, user, body, matchId }: ActionContext): Promise<NextResponse> {
+  const player = lobby.players.find(p => p.steamId === user.steamId);
+  if (!player) return error("Not in lobby", 403);
+
+  const text = typeof body.text === "string" ? body.text : typeof body.message === "string" ? body.message : "";
+  const trimmed = text.trim();
+  if (!trimmed) return error("Empty message", 400);
+
+  if (!Array.isArray(lobby.messages)) lobby.messages = [];
+
+  lobby.messages.push({
+    steamId: player.steamId,
+    displayName: player.displayName,
+    text: trimmed.slice(0, 200),
+    createdAt: new Date(),
+  });
+
+  await lobby.save();
+  broadcastLobbyUpdate(matchId, lobby.toObject());
+  return NextResponse.json(lobby.toObject());
+}
+
 // ─── Action map ───────────────────────────────────────────────────────────────
 
 export const lobbyActions: Record<string, ActionHandler> = {
@@ -484,4 +506,5 @@ export const lobbyActions: Record<string, ActionHandler> = {
   captain_pick_complete: captainPickComplete,
   kick_player: kickPlayer,
   map_veto: mapVeto,
+  chat,
 };
