@@ -3,8 +3,8 @@
 // ── Lobby modes ───────────────────────────────────────────────────────────────
 
 const LOBBY_MODES = [
-  { id: "pick_map",          label: "Use Current Teams & Map Veto" },
-  { id: "captain_map_veto",  label: "Captain Teams Pick & Map Veto" },
+  { id: "pick_map",          label: "Use Current Teams" },
+  { id: "captain_map_veto",  label: "Captain Pick Teams" },
   
 ] as const;
 type LobbyMode = "use_current_teams" | (typeof LOBBY_MODES)[number]["id"];
@@ -309,7 +309,7 @@ export default function LobbyPage() {
       {canEditSettings && (
         <section className="mb-8 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 p-8 shadow-2xl backdrop-blur">
           <h2 className="mb-2 font-display text-2xl font-bold tracking-tight text-[var(--foreground)]">Lobby Settings</h2>
-          <p className="text-sm text-[var(--muted)]">Update the lobby before starting the ready check.</p>
+          <p className="text-sm text-[var(--muted)]">Update the lobby before starting the ready check. After ready check and team picks there will be a map veto between captains</p>
 
           <div className="mt-6">
             <p className="mb-2 text-sm text-[var(--muted)]">Lobby mode</p>
