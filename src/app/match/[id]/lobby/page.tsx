@@ -3,10 +3,9 @@
 // ── Lobby modes ───────────────────────────────────────────────────────────────
 
 const LOBBY_MODES = [
-  { id: "use_current_teams", label: "Use Current Teams" },
-  { id: "captain_pick",      label: "Captain Pick" },
-  { id: "captain_map_veto",  label: "Captain Map Veto" },
-  { id: "pick_map",          label: "Pick Map" },
+  { id: "pick_map",          label: "Use Current Teams & Map Veto" },
+  { id: "captain_map_veto",  label: "Captain Teams Pick & Map Veto" },
+  
 ] as const;
 type LobbyMode = (typeof LOBBY_MODES)[number]["id"];
 
