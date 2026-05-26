@@ -7,7 +7,7 @@ const LOBBY_MODES = [
   { id: "captain_map_veto",  label: "Captain Teams Pick & Map Veto" },
   
 ] as const;
-type LobbyMode = (typeof LOBBY_MODES)[number]["id"];
+type LobbyMode = "use_current_teams" | (typeof LOBBY_MODES)[number]["id"];
 
 // ── Imports ───────────────────────────────────────────────────────────────────
 
