@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
 import { connectDB } from "@/src/backend/lib/db";
 import { getSession } from "@/src/backend/lib/session";
-import Lobby from "@/src/models/lobby";
 import { registerSubscriber, unregisterSubscriber } from "@/src/backend/services/sse";
+import { getMatchView } from "@/src/backend/lobby/matchView";
 
 export async function GET(
   req: NextRequest,
@@ -10,10 +10,10 @@ export async function GET(
 ) {
   const user = await getSession();
   if (!user) {
-    return new Response(JSON.stringify({ error: "You must be logged in to connect to lobby events." }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: "You must be logged in to connect to match events." }),
+      { status: 401, headers: { "Content-Type": "application/json" } }
+    );
   }
 
   const { id } = await params;
@@ -25,11 +25,12 @@ export async function GET(
     async start(controller) {
       const send = (data: string) => controller.enqueue(encoder.encode(data));
 
-      registerSubscriber("lobby", id, send);
+      registerSubscriber("match", id, send);
 
-      // Send current lobby state immediately on connect
-      const lobby = await Lobby.findOne({ matchId: id });
-      if (lobby) send(`data: ${JSON.stringify(lobby.toObject())}\n\n`);
+      // Send current match state immediately on connect
+      const view = await getMatchView(id, user);
+      if (view) send(`data: ${JSON.stringify(view)}\n\n`);
+      else send(`data: ${JSON.stringify({ error: "Match not found" })}\n\n`);
 
       const heartbeat = setInterval(() => {
         send(`data: {"heartbeat":true}\n\n`);
@@ -37,7 +38,7 @@ export async function GET(
 
       req.signal.addEventListener("abort", () => {
         clearInterval(heartbeat);
-        unregisterSubscriber("lobby", id, send);
+        unregisterSubscriber("match", id, send);
         controller.close();
       });
     },
