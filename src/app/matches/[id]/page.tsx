@@ -221,12 +221,12 @@ function TeamPanel({
   const sideColor = side === "CT" ? "text-[var(--accent)]" : "text-[var(--accent-2)]";
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/90 p-5 shadow-2xl backdrop-blur">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h2 className="text-lg font-bold text-[var(--foreground)]">{name}</h2>
+      <div className="mb-4 flex items-baseline justify-between gap-3">
+        <h2 className="text-lg font-bold text-[var(--foreground)]">{name}</h2>
+        <div className="flex items-baseline gap-3">
           <span className={`text-sm font-semibold ${sideColor}`}>{sideLabel(side)}</span>
+          <span className="text-2xl font-bold text-[var(--accent)]">{score}</span>
         </div>
-        <span className="text-2xl font-bold text-[var(--accent)]">{score}</span>
       </div>
 
       {players.length === 0 ? (
