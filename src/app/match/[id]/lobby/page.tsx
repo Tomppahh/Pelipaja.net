@@ -15,6 +15,7 @@ import { useMemo, useEffect, useRef, useState, type FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card } from "@/src/app/components/ui/card";
 import { Button } from "@/src/app/components/ui/button";
+import { Toast } from "@/src/app/components/ui/toast";
 import { Muted, PageTitle } from "@/src/app/components/ui/typography";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -286,14 +287,6 @@ export default function LobbyPage() {
 
   // ── Early returns ─────────────────────────────────────────────────────────
 
-  if (error) return (
-    <main className="mx-auto flex min-h-[calc(100vh-88px)] w-full max-w-2xl items-center justify-center px-4 py-8">
-      <Card className="w-full border-[var(--danger)]/35 bg-[var(--danger)]/10">
-        <p className="text-sm font-medium text-[var(--danger)]">{error}</p>
-      </Card>
-    </main>
-  );
-
   if (!lobby) return (
     <main className="mx-auto flex min-h-[calc(100vh-88px)] w-full max-w-2xl items-center justify-center px-4 py-8">
       <Card className="w-full"><Muted>Connecting to lobby…</Muted></Card>
@@ -304,6 +297,13 @@ export default function LobbyPage() {
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+
+      {/* Error banner */}
+      {error && (
+        <div className="mb-4">
+          <Toast message={error} variant="error" onDismiss={() => setError("")} />
+        </div>
+      )}
 
       {/* Lobby settings */}
       {canEditSettings && (
