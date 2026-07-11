@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { connectDB } from "@/src/backend/lib/db";
 import { getSession } from "@/src/backend/lib/session";
 import Lobby from "@/src/models/lobby";
+import Match from "@/src/models/Match";
 import { registerSubscriber, unregisterSubscriber } from "@/src/backend/services/sse";
 
 export async function GET(
@@ -25,11 +26,17 @@ export async function GET(
     async start(controller) {
       const send = (data: string) => controller.enqueue(encoder.encode(data));
 
+      // Subscribe to both channels so the page also receives match status
+      // updates (e.g. server becomes ready) broadcast on the "match" channel.
       registerSubscriber("lobby", id, send);
+      registerSubscriber("match", id, send);
 
-      // Send current lobby state immediately on connect
+      // Send current lobby + match state immediately on connect
       const lobby = await Lobby.findOne({ matchId: id });
       if (lobby) send(`data: ${JSON.stringify(lobby.toObject())}\n\n`);
+
+      const match = await Match.findById(id).lean();
+      if (match) send(`data: ${JSON.stringify({ __type: "matchUpdate", ...match })}\n\n`);
 
       const heartbeat = setInterval(() => {
         send(`data: {"heartbeat":true}\n\n`);
@@ -38,6 +45,7 @@ export async function GET(
       req.signal.addEventListener("abort", () => {
         clearInterval(heartbeat);
         unregisterSubscriber("lobby", id, send);
+        unregisterSubscriber("match", id, send);
         controller.close();
       });
     },

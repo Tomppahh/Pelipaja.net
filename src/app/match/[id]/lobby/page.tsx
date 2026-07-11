@@ -8,6 +8,18 @@ import { Card } from "@/src/app/components/ui/card";
 import { Button } from "@/src/app/components/ui/button";
 import { Toast } from "@/src/app/components/ui/toast";
 import { Muted, PageTitle } from "@/src/app/components/ui/typography";
+import { CS2_MAPS } from "@/src/backend/games/cs2/config/maps";
+
+function parseWorkshopId(input: string): string | null {
+  const trimmed = input.trim();
+  if (/^\d{5,20}$/.test(trimmed)) return trimmed;
+  const match = trimmed.match(/[?&]id=(\d{5,20})/);
+  if (match) return match[1];
+  return null;
+}
+
+const VALID_MAP_NAME = /^[a-zA-Z0-9_\-]{1,64}$/;
+
 import { CS2_LOBBY_MODES, type LobbyModeId } from "@/src/backend/games/cs2/config/modes";
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -46,7 +58,7 @@ interface Lobby {
   leaderId: string;
   players: LobbyPlayer[];
   messages?: LobbyMessage[];
-  settings: { teamSize: number; mode: string; mapPool?: string[]; name?: string; isPublic?: boolean; workshopMapName?: string; map?: string };
+  settings: { teamSize: number; mode: string; mapPool?: string[]; name?: string; isPublic?: boolean; workshopMapName?: string; workshopMapId?: string; map?: string };
   phase: Phase;
   captainPickState?: { currentTurn: Team; unpickedPlayers: string[] };
   mapVetoState?: {
@@ -90,9 +102,13 @@ export default function LobbyPage() {
   const [chatDraft,  setChatDraft]  = useState("");
 
   // Lobby settings (controlled, synced from lobby state)
-  const [settingsMode,     setSettingsMode]     = useState<LobbyMode>("use_current_teams");
-  const [settingsTeamSize, setSettingsTeamSize] = useState(5);
-  const [settingsSaving,   setSettingsSaving]   = useState(false);
+  const [settingsMode,         setSettingsMode]         = useState<LobbyMode>("use_current_teams");
+  const [settingsTeamSize,     setSettingsTeamSize]     = useState(5);
+  const [settingsUseWorkshop,  setSettingsUseWorkshop]  = useState(false);
+  const [settingsMap,          setSettingsMap]          = useState(CS2_MAPS[0]);
+  const [settingsWorkshopInput,setSettingsWorkshopInput] = useState("");
+  const [settingsWorkshopName, setSettingsWorkshopName] = useState("");
+  const [settingsSaving,       setSettingsSaving]       = useState(false);
 
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const joinedRef     = useRef(false);
@@ -143,7 +159,17 @@ export default function LobbyPage() {
     if (!lobby) return;
     setSettingsMode(lobby.settings.mode as LobbyMode);
     setSettingsTeamSize(lobby.settings.teamSize);
-  }, [lobby?.settings.mode, lobby?.settings.teamSize]);
+    setSettingsUseWorkshop(!!lobby.settings.workshopMapId);
+    setSettingsMap(lobby.settings.map ?? CS2_MAPS[0]);
+    setSettingsWorkshopInput(lobby.settings.workshopMapId ?? "");
+    setSettingsWorkshopName(lobby.settings.workshopMapName ?? "");
+  }, [
+    lobby?.settings.mode,
+    lobby?.settings.teamSize,
+    lobby?.settings.map,
+    lobby?.settings.workshopMapId,
+    lobby?.settings.workshopMapName,
+  ]);
 
   // Scroll chat to bottom on new messages
   useEffect(() => {
@@ -242,7 +268,38 @@ export default function LobbyPage() {
 
   async function saveLobbySettings() {
     setSettingsSaving(true);
-    await lobbyAction("update_settings", { settings: { mode: settingsMode, teamSize: settingsTeamSize } });
+
+    let mapName = settingsMap;
+    let workshopId: string | undefined;
+    let workshopName: string | undefined;
+
+    if (settingsUseWorkshop) {
+      const parsed = parseWorkshopId(settingsWorkshopInput);
+      if (!parsed) {
+        setError("Invalid Steam Workshop URL or ID");
+        setSettingsSaving(false);
+        return;
+      }
+      if (!settingsWorkshopName.trim()) {
+        setError("Enter a map name for the workshop map (e.g. de_mymap)");
+        setSettingsSaving(false);
+        return;
+      }
+      workshopId = parsed;
+      workshopName = settingsWorkshopName.trim().toLowerCase().replace(/[^a-z0-9_\-]/g, "_");
+      mapName = workshopName;
+    }
+
+    await lobbyAction("update_settings", {
+      settings: {
+        mode: settingsMode,
+        teamSize: settingsTeamSize,
+        useWorkshop: settingsUseWorkshop,
+        workshopMapId: settingsUseWorkshop ? workshopId : undefined,
+        workshopMapName: settingsUseWorkshop ? workshopName : undefined,
+        map: settingsUseWorkshop ? undefined : mapName,
+      },
+    });
     setSettingsSaving(false);
   }
 
@@ -343,6 +400,80 @@ export default function LobbyPage() {
               className="w-20 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
             />
           </div>
+
+          {/* Map chooser — only for fixed-map mode (no map veto) */}
+          {lobby.settings.mode === "use_current_teams" && (
+            <div className="mt-6">
+              <p className="mb-2 text-sm text-[var(--muted)]">Map</p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setSettingsUseWorkshop(false)}
+                  className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
+                    !settingsUseWorkshop
+                      ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+                      : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
+                  }`}
+                >
+                  Official Maps
+                </button>
+                <button
+                  onClick={() => setSettingsUseWorkshop(true)}
+                  className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
+                    settingsUseWorkshop
+                      ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+                      : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
+                  }`}
+                >
+                  Workshop Map
+                </button>
+              </div>
+
+              {!settingsUseWorkshop ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {CS2_MAPS.map((map) => (
+                    <button
+                      key={map}
+                      onClick={() => setSettingsMap(map)}
+                      className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
+                        settingsMap === map
+                          ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+                          : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
+                      }`}
+                    >
+                      {map}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-3 flex flex-col gap-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-[var(--muted)]">
+                      Steam Workshop URL or ID
+                    </label>
+                    <input
+                      type="text"
+                      value={settingsWorkshopInput}
+                      onChange={e => setSettingsWorkshopInput(e.target.value)}
+                      placeholder="https://steamcommunity.com/sharedfiles/filedetails/?id=3071055446"
+                      className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-[var(--muted)]">
+                      Map name (used by the server)
+                    </label>
+                    <input
+                      type="text"
+                      value={settingsWorkshopName}
+                      onChange={e => setSettingsWorkshopName(e.target.value)}
+                      placeholder="de_mymap"
+                      className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <button
