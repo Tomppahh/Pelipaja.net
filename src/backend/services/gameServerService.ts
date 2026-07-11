@@ -154,7 +154,7 @@ export async function createServer(gameType: string, map: string, matchId: strin
     throw err;
   }
 
-  if (activeGameIds.size >= 10) {
+  if (activeGameIds.size >= getMaxServers()) {
     throw new Error('Maximum number of servers reached');
   }
 

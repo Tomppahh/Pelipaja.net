@@ -45,7 +45,7 @@ function entryWinPercent(p: PlayerMatchStats) {
 }
 
 function sideLabel(side: string) {
-  return side === "CT" ? "COUNTER-TERRORIST" : "TERRORIST";
+  return side === "CT" ? "CT" : "T";
 }
 
 function formatDuration(seconds: number) {
@@ -224,7 +224,7 @@ function TeamPanel({
       <div className="mb-4 flex items-baseline justify-between gap-3">
         <h2 className="text-lg font-bold text-[var(--foreground)]">{name}</h2>
         <div className="flex items-baseline gap-3">
-          <span className={`text-sm font-semibold ${sideColor}`}>{sideLabel(side)}</span>
+          <span className={`text-2xl font-semibold ${sideColor}`}>{sideLabel(side)}</span>
           <span className="text-2xl font-bold text-[var(--accent)]">{score}</span>
         </div>
       </div>
