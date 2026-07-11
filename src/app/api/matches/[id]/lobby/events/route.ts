@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { connectDB } from "@/src/backend/lib/db";
+import { getSession } from "@/src/backend/lib/session";
 import Lobby from "@/src/models/lobby";
 import { registerSubscriber, unregisterSubscriber } from "@/src/backend/services/sse";
 
@@ -7,6 +8,14 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const user = await getSession();
+  if (!user) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const { id } = await params;
   await connectDB();
 

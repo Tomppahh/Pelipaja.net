@@ -54,6 +54,12 @@ export async function POST(
         (match.gameConfig as Record<string, unknown>).map as string ??
         "de_mirage";
 
+      const workshopId = lobby?.settings.workshopMapId ?? undefined;
+
+      const mapName = workshopId
+        ? (lobby?.settings.workshopMapName ?? map)
+        : map;
+
       await fetch(`http://${process.env.HOME_PC_WG_IP}:${match.apiPort}/config`, {
         method: "POST",
         headers: {
@@ -64,7 +70,8 @@ export async function POST(
           mode: "pelipaja",
           matchId: match._id.toString(),
           ownerSteamID: (match.gameConfig as Record<string, unknown>).ownerSteamID,
-          map,
+          map: mapName,
+          workshopId,
           teamSize: lobby?.settings.teamSize ?? match.playersPerTeam,
           team1: { name: "Team 1", players: team1Players },
           team2: { name: "Team 2", players: team2Players },
@@ -75,7 +82,9 @@ export async function POST(
 
     if (status === "finished" || status === "cancelled") {
       if (match.gameId) {
-        await destroyServer(match.gameId);
+        const lobby = await Lobby.findOne({ matchId: id });
+        const workshopId = lobby?.settings.workshopMapId;
+        await destroyServer(match.gameId, workshopId ? [workshopId] : undefined);
       }
     }
 

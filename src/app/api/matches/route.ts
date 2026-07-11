@@ -6,9 +6,12 @@ import MatchResult from "@/src/models/MatchResult";
 import Lobby from "@/src/models/lobby";
 import { ROLES, hasRole } from "@/src/lib/config/settings";
 import { CS2_MAPS } from "@/src/backend/games/cs2/config/maps";
+import bcrypt from "bcrypt";
 
 const VALID_GAME_TYPES = ["cs2"] as const;
 const VALID_LOBBY_MODES = ["use_current_teams", "captain_pick", "captain_map_veto", "pick_map"] as const;
+const VALID_WORKSHOP_ID = /^\d{5,20}$/;
+const VALID_MAP_NAME = /^[a-zA-Z0-9_\-]{1,64}$/;
 
 export async function POST(req: NextRequest) {
   const user = await getSession();
@@ -92,7 +95,23 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Validate workshop fields if provided
+  const rawWorkshopId = (gameConfig as Record<string, unknown>)?.workshopId as string | undefined;
+  const rawMapName = (gameConfig as Record<string, unknown>)?.map as string | undefined;
+
+  if (rawWorkshopId) {
+    if (!VALID_WORKSHOP_ID.test(rawWorkshopId)) {
+      return NextResponse.json({ error: "Invalid workshop ID format" }, { status: 400 });
+    }
+    if (!rawMapName || !VALID_MAP_NAME.test(rawMapName)) {
+      return NextResponse.json({ error: "Invalid map name for workshop map" }, { status: 400 });
+    }
+  }
+
   // Creator is added to the lobby immediately so they don't need to "join" on page load
+  const rawPassword = (gameConfig as Record<string, unknown>)?.password as string | undefined;
+  const hashedPassword = rawPassword ? await bcrypt.hash(rawPassword, 10) : undefined;
+
   await Lobby.create({
     matchId: match._id,
     leaderId: user.steamId,
@@ -100,6 +119,13 @@ export async function POST(req: NextRequest) {
       teamSize: resolvedTeamSize,
       mode: lobbyMode,
       mapPool: CS2_MAPS,
+      workshopMapId: rawWorkshopId,
+      workshopMapName: rawMapName,
+      isPublic: !!(gameConfig as Record<string, unknown>)?.isPublic,
+      password: hashedPassword,
+      name: typeof (gameConfig as Record<string, unknown>)?.name === "string"
+        ? ((gameConfig as Record<string, unknown>).name as string).slice(0, 60)
+        : undefined,
     },
     players: [{
       steamId: user.steamId,

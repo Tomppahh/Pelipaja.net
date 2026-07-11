@@ -51,7 +51,7 @@ interface Lobby {
   leaderId: string;
   players: LobbyPlayer[];
   messages?: LobbyMessage[];
-  settings: { teamSize: number; mode: string; mapPool?: string[] };
+  settings: { teamSize: number; mode: string; mapPool?: string[]; name?: string; isPublic?: boolean; workshopMapName?: string };
   phase: Phase;
   captainPickState?: { currentTurn: Team; unpickedPlayers: string[] };
   mapVetoState?: {
@@ -357,7 +357,14 @@ export default function LobbyPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <PageTitle>{MODE_LABEL[lobby.settings.mode] ?? lobby.settings.mode}</PageTitle>
+          <div className="flex items-center gap-2">
+            <PageTitle>{lobby.settings.name ?? (MODE_LABEL[lobby.settings.mode] ?? lobby.settings.mode)}</PageTitle>
+            {lobby.settings.isPublic && (
+              <span className="rounded-full border border-[var(--accent)]/40 bg-[var(--accent)]/10 px-2 py-0.5 text-[11px] font-semibold text-[var(--accent)]">
+                Public
+              </span>
+            )}
+          </div>
           <Muted className="mt-1">{PHASE_LABEL[lobby.phase]}</Muted>
           <p className="mt-2 text-sm text-[var(--muted)]">
             Lobby leader: <span className="font-semibold text-[var(--foreground)]">{leader?.displayName ?? lobby.leaderId}</span>

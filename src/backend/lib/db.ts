@@ -1,16 +1,31 @@
 import mongoose from "mongoose";
 
+const MONGODB_URI = process.env.MONGODB_URI || "";
 
-const MONGODB_URI = process.env.MONGODB_URI || '';
+const uri = MONGODB_URI || "mongodb://localhost:27017/pelipaja";
 
-if (process.env.NODE_ENV === 'production' && !MONGODB_URI) {
-    throw new Error("MONGODB_URI is not defined in .env file!");
-}
+mongoose.connection.on("disconnected", () => {
+  console.warn("[DB] MongoDB disconnected. Will reconnect on next query.");
+});
 
-let isConnected = false;
+mongoose.connection.on("error", (err) => {
+  console.error("[DB] MongoDB connection error:", err.message);
+});
+
+let cleanupInitialized = false;
 
 export async function connectDB(): Promise<void> {
-    if (isConnected) return;
-    await mongoose.connect(MONGODB_URI);
-    isConnected = true;
+  if (mongoose.connection.readyState === 1) return;
+
+  if (!MONGODB_URI && process.env.NODE_ENV === "production") {
+    throw new Error("MONGODB_URI is not defined in .env file!");
+  }
+
+  await mongoose.connect(uri);
+
+  if (!cleanupInitialized) {
+    cleanupInitialized = true;
+    const { ensureLobbyCleanupStarted } = await import("@/src/backend/services/lobbyCleanup");
+    ensureLobbyCleanupStarted();
+  }
 }

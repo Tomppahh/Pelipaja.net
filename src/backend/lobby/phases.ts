@@ -122,6 +122,12 @@ export async function advanceBotCaptainPicks(matchId: string) {
 // ─── Map veto ─────────────────────────────────────────────────────────────────
 
 export async function startMapVeto(lobby: ILobby, matchId: string) {
+  // Workshop maps skip veto entirely — go straight to server start
+  if (lobby.settings.workshopMapId) {
+    await finalizeLobbyAndStartServer(lobby, matchId);
+    return;
+  }
+
   lobby.phase = "map_veto";
   lobby.mapVetoState = {
     remainingMaps: [...CS2_MAPS],
@@ -171,10 +177,9 @@ export async function finalizeLobbyAndStartServer(lobby: ILobby, matchId: string
     return;
   }
 
-  const map =
-    lobby.mapVetoState?.remainingMaps[0] ??
-    lobby.settings.mapPool?.[0] ??
-    "de_mirage";
+  const map = lobby.settings.workshopMapId
+    ? (lobby.settings.workshopMapName ?? "workshop_map")
+    : (lobby.mapVetoState?.remainingMaps[0] ?? lobby.settings.mapPool?.[0] ?? "de_mirage");
 
   lobby.phase = "starting";
   await lobby.save();
