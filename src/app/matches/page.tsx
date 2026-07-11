@@ -118,7 +118,7 @@ export default function MatchesPage() {
               return (
                 <Link
                   key={m.matchId}
-                  href={m.isBotTest ? `/matches/${m.matchId}` : `/match/${m.matchId}/lobby`}
+                  href={`/matches/${m.matchId}`}
                   className="group relative overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 transition hover:border-[var(--accent)]/40 hover:bg-[var(--surface-hover)] sm:p-5"
                 >
                   {/* Accent left edge */}
