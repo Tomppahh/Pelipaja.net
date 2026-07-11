@@ -28,15 +28,24 @@ function sortPlayers(players: PlayerMatchStats[]) {
   return [...players].sort((a, b) => b.score - a.score);
 }
 
+function num(n: number | undefined): number {
+  return typeof n === "number" && Number.isFinite(n) ? n : 0;
+}
+
 function hsPercent(p: PlayerMatchStats) {
-  if (p.kills === 0) return "0%";
-  return `${Math.round((p.headshotKills / p.kills) * 100)}%`;
+  const k = num(p.kills);
+  if (k === 0) return "0%";
+  return `${Math.round((num(p.headshotKills) / k) * 100)}%`;
 }
 
 function entryWinPercent(p: PlayerMatchStats) {
-  const total = p.entryKills + p.entryDeaths;
+  const total = num(p.entryKills) + num(p.entryDeaths);
   if (total === 0) return "-";
-  return `${Math.round((p.entryKills / total) * 100)}%`;
+  return `${Math.round((num(p.entryKills) / total) * 100)}%`;
+}
+
+function sideLabel(side: string) {
+  return side === "CT" ? "COUNTER-TERRORIST" : "TERRORIST";
 }
 
 function formatDuration(seconds: number) {
@@ -218,7 +227,7 @@ function TeamPanel({
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-bold text-[var(--foreground)]">{name}</h2>
-          <span className={`text-sm font-semibold ${sideColor}`}>({side})</span>
+          <span className={`text-sm font-semibold ${sideColor}`}>{sideLabel(side)}</span>
         </div>
         <span className="text-2xl font-bold text-[var(--accent)]">{score}</span>
       </div>
@@ -248,14 +257,14 @@ function TeamPanel({
                   <td className="py-2 pr-2">
                     <span className="font-medium text-[var(--foreground)]">{p.name}</span>
                   </td>
-                  <td className="py-2 px-2 text-center tabular-nums text-[var(--foreground)]">{p.kills}</td>
-                  <td className="py-2 px-2 text-center tabular-nums text-[var(--foreground)]">{p.deaths}</td>
-                  <td className="py-2 px-2 text-center tabular-nums text-[var(--foreground)]">{p.assists}</td>
+                  <td className="py-2 px-2 text-center tabular-nums text-[var(--foreground)]">{num(p.kills)}</td>
+                  <td className="py-2 px-2 text-center tabular-nums text-[var(--foreground)]">{num(p.deaths)}</td>
+                  <td className="py-2 px-2 text-center tabular-nums text-[var(--foreground)]">{num(p.assists)}</td>
                   <td className="py-2 px-2 text-center tabular-nums text-[var(--foreground)]">
-                    {p.kills - p.deaths >= 0 ? "+" : ""}{p.kills - p.deaths}
+                    {num(p.kills) - num(p.deaths) >= 0 ? "+" : ""}{num(p.kills) - num(p.deaths)}
                   </td>
                   <td className="py-2 px-2 text-center tabular-nums text-[var(--muted)]">
-                    {p.totalDamage > 0 ? Math.round(p.totalDamage / Math.max(1, 30)) : 0}
+                    {num(p.totalDamage) > 0 ? Math.round(num(p.totalDamage) / Math.max(1, 30)) : 0}
                   </td>
                   <td className="py-2 pl-2 text-center tabular-nums font-semibold text-[var(--accent)]">{p.score}</td>
                 </tr>
@@ -286,13 +295,13 @@ function TeamPanel({
                     <td className="py-1.5 pr-2 text-[var(--muted)]">{p.name}</td>
                     <td className="py-1.5 px-2 text-center tabular-nums">{hsPercent(p)}</td>
                     <td className="py-1.5 px-2 text-center tabular-nums">
-                      {p.totalDamage > 0 ? Math.round(p.totalDamage / Math.max(1, 30)) : 0}
+                      {num(p.totalDamage) > 0 ? Math.round(num(p.totalDamage) / Math.max(1, 30)) : 0}
                     </td>
-                    <td className="py-1.5 px-2 text-center tabular-nums">{p.utilityDamage}</td>
-                    <td className="py-1.5 px-2 text-center tabular-nums">{p.flashAssists}</td>
+                    <td className="py-1.5 px-2 text-center tabular-nums">{num(p.utilityDamage)}</td>
+                    <td className="py-1.5 px-2 text-center tabular-nums">{num(p.flashAssists)}</td>
                     <td className="py-1.5 px-2 text-center tabular-nums">{entryWinPercent(p)}</td>
                     <td className="py-1.5 px-2 text-center tabular-nums">
-                      {p.oneVoneCount > 0 ? `${p.oneVoneWins}/${p.oneVoneCount}` : "-"}
+                      {num(p.oneVoneCount) > 0 ? `${num(p.oneVoneWins)}/${num(p.oneVoneCount)}` : "-"}
                     </td>
                     <td className="py-1.5 pl-2 text-center tabular-nums">{p.ping}ms</td>
                   </tr>
