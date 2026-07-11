@@ -361,6 +361,21 @@ async function updateSettings({ lobby, user, body, matchId }: ActionContext): Pr
   if (typeof incoming.mode === "string") allowed.mode = incoming.mode;
   if (typeof incoming.teamSize === "number") allowed.teamSize = incoming.teamSize;
 
+  // Map chooser (only used for fixed-map modes like use_current_teams).
+  // Drive clearing from the `useWorkshop` flag so we don't depend on the
+  // client sending `undefined` (which JSON.stringify drops).
+  const useWorkshop = incoming.useWorkshop === true;
+  allowed.useWorkshop = useWorkshop;
+  if (useWorkshop) {
+    if (typeof incoming.workshopMapId === "string" && incoming.workshopMapId) allowed.workshopMapId = incoming.workshopMapId;
+    if (typeof incoming.workshopMapName === "string" && incoming.workshopMapName) allowed.workshopMapName = incoming.workshopMapName;
+    allowed.map = undefined; // clear fixed official map
+  } else {
+    if (typeof incoming.map === "string" && incoming.map) allowed.map = incoming.map;
+    allowed.workshopMapId = undefined;   // clear workshop selection
+    allowed.workshopMapName = undefined;
+  }
+
   lobby.settings = { ...lobby.settings, ...allowed };
   await lobby.save();
   broadcastLobbyUpdate(matchId, lobby.toObject());
