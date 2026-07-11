@@ -18,21 +18,24 @@ export async function GET() {
   const publicLobbyByMatch = new Map(lobbies.map((l) => [l.matchId.toString(), l]));
 
   const ongoing = matches
-    .filter((m) => publicLobbyByMatch.has(m._id.toString()))
+    .filter((m) => publicLobbyByMatch.has(m._id.toString()) || (m.gameConfig as Record<string, unknown>)?.botTestMode === true)
     .map((m) => {
-      const lobby = publicLobbyByMatch.get(m._id.toString())!;
-      const playerCount = lobby.players.length;
-      const capacity = lobby.settings.teamSize * 2;
+      const lobby = publicLobbyByMatch.get(m._id.toString());
+      const gc = (m.gameConfig ?? {}) as Record<string, unknown>;
+      const playerCount = lobby?.players?.length ?? m.playersPerTeam * 2;
+      const capacity = lobby?.settings.teamSize ?? m.playersPerTeam;
+      const isBotTest = gc.botTestMode === true;
 
       return {
         matchId: m._id.toString(),
         status: m.status,
-        map: lobby.settings.workshopMapName ?? (m.gameConfig as Record<string, unknown>)?.map ?? "TBD",
-        mode: lobby.settings.mode,
-        name: lobby.settings.name,
-        teamSize: lobby.settings.teamSize,
+        map: lobby?.settings.workshopMapName ?? gc.map ?? "TBD",
+        mode: isBotTest ? "bot_test" : (lobby?.settings.mode ?? "unknown"),
+        name: isBotTest ? "Bot Test" : (lobby?.settings.name ?? "Bot Test"),
+        teamSize: capacity,
         playerCount,
-        capacity,
+        capacity: capacity * 2,
+        isBotTest,
         createdAt: m.createdAt,
       };
     });
