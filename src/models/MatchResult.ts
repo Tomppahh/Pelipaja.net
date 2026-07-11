@@ -38,6 +38,8 @@ const PlayerStatsSchema = new Schema<PlayerMatchStats>(
     shotsOnTarget: { type: Number, default: 0 },
     totalDamage: { type: Number, default: 0 },
     entryKills: { type: Number, default: 0 },
+    entryDeaths: { type: Number, default: 0 },
+    entryCount: { type: Number, default: 0 },
     oneVoneCount: { type: Number, default: 0 },
     oneVoneWins: { type: Number, default: 0 },
   },
