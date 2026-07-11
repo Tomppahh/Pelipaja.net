@@ -147,13 +147,13 @@ export default function AdminPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        setToast({ message: `Solo test started! Match: ${data.matchId}`, variant: "success" });
+        setToast({ message: `Bot test started! Connect: ${data.connectionIp}:${data.connectionPort}`, variant: "success" });
         fetchMatches();
       } else {
-        setToast({ message: data.error ?? "Failed to create solo test", variant: "error" });
+        setToast({ message: data.error ?? "Failed to create bot test", variant: "error" });
       }
     } catch {
-      setToast({ message: "Failed to create solo test", variant: "error" });
+      setToast({ message: "Failed to create bot test", variant: "error" });
     }
     setSoloTesting(false);
   }
@@ -226,7 +226,7 @@ export default function AdminPage() {
               {creating ? "Creating..." : "Create Server"}
             </Button>
             <Button onClick={createSoloTest} disabled={soloTesting} variant="secondary">
-              {soloTesting ? "Starting..." : "Solo Test"}
+              {soloTesting ? "Starting..." : "Bot Test"}
             </Button>
           </div>
         </div>

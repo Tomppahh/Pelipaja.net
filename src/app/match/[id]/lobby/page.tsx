@@ -293,6 +293,17 @@ export default function LobbyPage() {
     </main>
   );
 
+  if (!mySteamId) return (
+    <main className="mx-auto flex min-h-[calc(100vh-88px)] w-full max-w-2xl items-center justify-center px-4 py-8">
+      <Card className="w-full p-8 text-center">
+        <Muted>You need to be logged in to view this lobby.</Muted>
+        <a href="/api/auth/steam" className="mt-4 inline-block rounded-lg bg-[var(--accent)] px-6 py-2.5 font-semibold text-[var(--accent-contrast)] transition hover:brightness-110">
+          Log in with Steam
+        </a>
+      </Card>
+    </main>
+  );
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -388,12 +399,14 @@ export default function LobbyPage() {
               {cancelLabel}
             </button>
           )}
-          <button
-            onClick={leaveLobby}
-            className="rounded-lg border border-[var(--danger)]/50 px-4 py-2 text-sm font-semibold text-[var(--danger)] transition hover:bg-[var(--danger)]/10"
-          >
-            Leave Lobby
-          </button>
+          {me && (
+            <button
+              onClick={leaveLobby}
+              className="rounded-lg border border-[var(--danger)]/50 px-4 py-2 text-sm font-semibold text-[var(--danger)] transition hover:bg-[var(--danger)]/10"
+            >
+              Leave Lobby
+            </button>
+          )}
         </div>
       </div>
 

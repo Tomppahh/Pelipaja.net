@@ -18,7 +18,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   if (!authorized(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Invalid API secret." }, { status: 401 });
   }
 
   await connectDB();
@@ -48,10 +48,13 @@ export async function POST(
         .filter(p => p.team === "team2")
         .map(p => p.steamId);
 
+      const gameConfigMap = (match.gameConfig as Record<string, unknown>).map as string | undefined;
+      const gameConfigMode = (match.gameConfig as Record<string, unknown>).mode as string | undefined;
+
       const map =
         lobby?.mapVetoState?.remainingMaps[0] ??
         lobby?.settings.mapPool?.[0] ??
-        (match.gameConfig as Record<string, unknown>).map as string ??
+        gameConfigMap ??
         "de_mirage";
 
       const workshopId = lobby?.settings.workshopMapId ?? undefined;

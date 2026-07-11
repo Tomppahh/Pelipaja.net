@@ -8,8 +8,11 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const user = await getSession();
-  if (!user || user.role !== "admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!user) {
+    return NextResponse.json({ error: "You must be logged in to access the admin panel." }, { status: 401 });
+  }
+  if (user.role !== "admin") {
+    return NextResponse.json({ error: "The admin panel is restricted to admins." }, { status: 403 });
   }
 
   await connectDB();
@@ -22,8 +25,11 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const user = await getSession();
-  if (!user || user.role !== "admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!user) {
+    return NextResponse.json({ error: "You must be logged in to create a server." }, { status: 401 });
+  }
+  if (user.role !== "admin") {
+    return NextResponse.json({ error: "Creating test servers is restricted to admins." }, { status: 403 });
   }
 
   await connectDB();

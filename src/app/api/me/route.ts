@@ -3,7 +3,7 @@ import { getSession } from "@/src/backend/lib/session";
 
 export async function GET() {
   const user = await getSession();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user) return NextResponse.json({ steamId: null });
 
   return NextResponse.json({
     steamId:     user.steamId,

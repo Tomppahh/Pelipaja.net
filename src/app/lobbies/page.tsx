@@ -36,6 +36,14 @@ export default function LobbiesPage() {
   const [passwordModal, setPasswordModal] = useState<{ matchId: string; name: string } | null>(null);
   const [passwordInput, setPasswordInput] = useState("");
   const [joining, setJoining] = useState(false);
+  const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch("/api/me")
+      .then(r => r.json())
+      .then(d => setLoggedIn(!!d.steamId))
+      .catch(() => setLoggedIn(false));
+  }, []);
 
   const fetchLobbies = useCallback(async () => {
     try {
@@ -105,14 +113,24 @@ export default function LobbiesPage() {
 
       <div className="mb-6 flex items-center justify-between">
         <PageTitle>Public Lobbies</PageTitle>
-        <Button variant="secondary" onClick={() => router.push("/match/new/cs2")}>
-          Create Lobby
-        </Button>
+        {loggedIn && (
+          <Button variant="secondary" onClick={() => router.push("/match/new/cs2")}>
+            Create Lobby
+          </Button>
+        )}
       </div>
+
+      {!loggedIn && !loading && (
+        <Card className="mb-4 p-6 text-center">
+          <p className="text-sm text-[var(--muted)]">
+            <a href="/api/auth/steam" className="font-semibold text-[var(--accent)] underline">Log in with Steam</a> to create or join lobbies.
+          </p>
+        </Card>
+      )}
 
       {lobbies.length === 0 ? (
         <Card className="p-12 text-center">
-          <Muted>No public lobbies available. Create one!</Muted>
+          <Muted>{loggedIn ? "No public lobbies available. Create one!" : "No public lobbies available."}</Muted>
         </Card>
       ) : (
         <div className="grid gap-4">
@@ -149,9 +167,15 @@ export default function LobbiesPage() {
                     </p>
                     <p className="text-[11px] text-[var(--muted)]">Players</p>
                   </div>
-                  <Button onClick={() => handleJoin(lobby)}>
-                    Join
-                  </Button>
+                  {loggedIn ? (
+                    <Button onClick={() => handleJoin(lobby)}>
+                      Join
+                    </Button>
+                  ) : (
+                    <a href="/api/auth/steam" className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--muted)] transition hover:bg-[var(--surface-hover)]">
+                      Log in to join
+                    </a>
+                  )}
                 </div>
               </div>
             </article>
