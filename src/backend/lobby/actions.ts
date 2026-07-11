@@ -5,6 +5,7 @@ import {
   handleAllReady,
   advanceBotCaptainPicks,
   startMapVeto,
+  proceedAfterCaptainPick,
   finalizeLobbyAndStartServer,
   scheduleBotVeto,
   validateLobbyCanStart,
@@ -456,7 +457,7 @@ async function captainPick({ lobby, user, body, matchId }: ActionContext): Promi
   lobby.captainPickState.currentTurn = currentTurn === "team1" ? "team2" : "team1";
 
   if (lobby.captainPickState.unpickedPlayers.length === 0) {
-    await startMapVeto(lobby, matchId);
+    await proceedAfterCaptainPick(lobby, matchId);
   } else {
     await lobby.save();
     broadcastLobbyUpdate(matchId, lobby.toObject());
@@ -479,7 +480,7 @@ async function captainPickComplete({ lobby, user, matchId }: ActionContext): Pro
   const teamsFull = team1Count >= lobby.settings.teamSize && team2Count >= lobby.settings.teamSize;
 
   if (unassigned.length === 0 || teamsFull) {
-    await startMapVeto(lobby, matchId);
+    await proceedAfterCaptainPick(lobby, matchId);
     return NextResponse.json(lobby);
   }
 

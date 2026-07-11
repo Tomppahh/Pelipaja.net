@@ -369,7 +369,7 @@ export default function LobbyPage() {
       {canEditSettings && (
         <section className="mb-8 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 p-8 shadow-2xl backdrop-blur">
           <h2 className="mb-2 font-display text-2xl font-bold tracking-tight text-[var(--foreground)]">Lobby Settings</h2>
-          <p className="text-sm text-[var(--muted)]">Pick how teams are formed and how the map is chosen. For map-veto modes the map is decided in-lobby, so no map is selected here.</p>
+          <p className="text-sm text-[var(--muted)]">Pick how teams are formed and how the map is chosen. Modes where you choose a map show a map picker below; veto modes decide the map in-lobby.</p>
 
           <div className="mt-6">
             <p className="mb-2 text-sm text-[var(--muted)]">Lobby mode</p>
@@ -378,13 +378,14 @@ export default function LobbyPage() {
                 <button
                   key={mode.id}
                   onClick={() => setSettingsMode(mode.id)}
-                  className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
+                  className={`rounded-lg border px-4 py-2 text-left text-sm font-semibold transition ${
                     settingsMode === mode.id
                       ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
                       : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
                   }`}
                 >
-                  {mode.label}
+                  <div>{mode.label}</div>
+                  <div className="mt-0.5 text-xs font-normal opacity-80">{mode.hint}</div>
                 </button>
               ))}
             </div>
@@ -401,8 +402,8 @@ export default function LobbyPage() {
             />
           </div>
 
-          {/* Map chooser — only for fixed-map mode (no map veto) */}
-          {lobby.settings.mode === "use_current_teams" && (
+          {/* Map chooser — shown for fixed-map modes (no map veto) */}
+          {(lobby.settings.mode === "use_current_teams" || lobby.settings.mode === "captain_pick") && (
             <div className="mt-6">
               <p className="mb-2 text-sm text-[var(--muted)]">Map</p>
               <div className="flex flex-wrap gap-2">
