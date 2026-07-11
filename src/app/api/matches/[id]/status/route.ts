@@ -38,30 +38,9 @@ export async function POST(
   try {
     if (status === "configuring") {
       const lobby = await Lobby.findOne({ matchId: id });
-      const gc = (match.gameConfig ?? {}) as Record<string, unknown>;
 
-      // Solo test: no lobby — send config from match.gameConfig
+      // Solo test matches have no lobby — config was already sent directly, skip.
       if (!lobby) {
-        const botTestMode = gc.botTestMode === true;
-        const botsPerTeam = gc.botsPerTeam ?? gc.teamSize ?? match.playersPerTeam;
-        await fetch(`http://${process.env.HOME_PC_WG_IP}:${match.apiPort}/config`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env.MATCHUP_API_SECRET}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            mode: "pelipaja",
-            matchId: match._id.toString(),
-            ownerSteamID: gc.ownerSteamID,
-            map: gc.map ?? "de_mirage",
-            teamSize: gc.teamSize ?? match.playersPerTeam,
-            knifeRound: false,
-            botTestMode,
-            botsPerTeam,
-          }),
-          signal: AbortSignal.timeout(10000),
-        });
         return NextResponse.json({ ok: true });
       }
 
@@ -119,25 +98,31 @@ export async function POST(
     // Save match result with stats when match finishes
     if (status === "finished" && stats?.players) {
       const lobby = await Lobby.findOne({ matchId: id });
+      const gc = (match.gameConfig ?? {}) as Record<string, unknown>;
+      const isBotTest = gc.botTestMode === true;
       const team1Players = (lobby?.players ?? []).filter(p => p.team === "team1").map(p => p.steamId);
       const team2Players = (lobby?.players ?? []).filter(p => p.team === "team2").map(p => p.steamId);
 
-      const team1StatsList = stats.players.filter((p: { steamId: string }) => team1Players.includes(p.steamId));
-      const team2StatsList = stats.players.filter((p: { steamId: string }) => team2Players.includes(p.steamId));
+      const team1StatsList = isBotTest
+        ? stats.players.filter((p: { team: string }) => p.team === "CT")
+        : stats.players.filter((p: { steamId: string }) => team1Players.includes(p.steamId));
+      const team2StatsList = isBotTest
+        ? stats.players.filter((p: { team: string }) => p.team === "T")
+        : stats.players.filter((p: { steamId: string }) => team2Players.includes(p.steamId));
 
       await MatchResult.create({
         matchId: id,
-        map: stats.map ?? (match.gameConfig as Record<string, unknown>).map as string,
-        isPublic: lobby?.settings.isPublic ?? false,
+        map: stats.map ?? gc.map as string,
+        isPublic: isBotTest || (lobby?.settings.isPublic ?? false),
         score: stats.score ?? { ct: 0, t: 0 },
         duration: Math.floor((Date.now() - match.createdAt.getTime()) / 1000),
         team1: {
-          name: "Team 1",
+          name: isBotTest ? "CT Bots" : "Team 1",
           score: stats.score?.ct ?? 0,
           players: team1StatsList,
         },
         team2: {
-          name: "Team 2",
+          name: isBotTest ? "T Bots" : "Team 2",
           score: stats.score?.t ?? 0,
           players: team2StatsList,
         },
