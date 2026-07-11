@@ -38,30 +38,9 @@ export async function POST(
   try {
     if (status === "configuring") {
       const lobby = await Lobby.findOne({ matchId: id });
-      const gc = (match.gameConfig ?? {}) as Record<string, unknown>;
 
-      // Solo test: no lobby — send config from match.gameConfig
+      // Solo test matches have no lobby — config was already sent directly, skip.
       if (!lobby) {
-        const botTestMode = gc.botTestMode === true;
-        const botsPerTeam = gc.botsPerTeam ?? gc.teamSize ?? match.playersPerTeam;
-        await fetch(`http://${process.env.HOME_PC_WG_IP}:${match.apiPort}/config`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env.MATCHUP_API_SECRET}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            mode: "pelipaja",
-            matchId: match._id.toString(),
-            ownerSteamID: gc.ownerSteamID,
-            map: gc.map ?? "de_mirage",
-            teamSize: gc.teamSize ?? match.playersPerTeam,
-            knifeRound: false,
-            botTestMode,
-            botsPerTeam,
-          }),
-          signal: AbortSignal.timeout(10000),
-        });
         return NextResponse.json({ ok: true });
       }
 
