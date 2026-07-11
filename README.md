@@ -14,7 +14,7 @@ A community CS2 5v5 matchmaking platform developed as part of a bachelor's thesi
 - **Private Lobbies** — Password-protected lobbies with public/private visibility
 - **Admin Panel** — Server management, live match monitoring, and test server creation
 - **Steam Authentication** — Login via Steam OpenID
-- **Demo Upload** — Automatic GOTV demo recording and upload to Azure Blob Storage
+- (UPCOMING FEATURE) **Demo Upload** — Automatic GOTV demo recording and upload to Azure Blob Storage
 
 ## Architecture
 

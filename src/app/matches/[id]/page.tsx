@@ -17,6 +17,8 @@ interface MatchData {
     duration?: number;
     team1?: { name: string; score: number; players: PlayerMatchStats[] };
     team2?: { name: string; score: number; players: PlayerMatchStats[] };
+    team1Name?: string;
+    team2Name?: string;
     players?: PlayerMatchStats[];
   } | null;
   error?: string;
@@ -31,9 +33,10 @@ function hsPercent(p: PlayerMatchStats) {
   return `${Math.round((p.headshotKills / p.kills) * 100)}%`;
 }
 
-function accuracy(p: PlayerMatchStats) {
-  if (p.shotsFired === 0) return "0%";
-  return `${Math.round((p.shotsOnTarget / p.shotsFired) * 100)}%`;
+function entryWinPercent(p: PlayerMatchStats) {
+  const total = p.entryKills + p.entryDeaths;
+  if (total === 0) return "-";
+  return `${Math.round((p.entryKills / total) * 100)}%`;
 }
 
 function formatDuration(seconds: number) {
@@ -94,22 +97,36 @@ export default function MatchDetailPage() {
 
   const { data, status, source } = match;
   const isLive = status === "live" || status === "ready";
+  const round = data.round ?? 0;
+  const halftime = round > 12;
 
   // Split players into teams
   let team1Players: PlayerMatchStats[] = [];
   let team2Players: PlayerMatchStats[] = [];
   let team1Name = "Team 1";
   let team2Name = "Team 2";
+  let team1Side = "CT";
+  let team2Side = "T";
 
   if (data.team1 && data.team2) {
     team1Players = sortPlayers(data.team1.players);
     team2Players = sortPlayers(data.team2.players);
     team1Name = data.team1.name;
     team2Name = data.team2.name;
+    // For database results, team1 is always the first team, sides swap at halftime
+    team1Side = halftime ? "T" : "CT";
+    team2Side = halftime ? "CT" : "T";
   } else if (data.players) {
     // From plugin — split by team
     const ct = data.players.filter((p) => p.team === "CT");
     const t = data.players.filter((p) => p.team === "T");
+    // Use team names from API if available
+    team1Name = data.team1Name ?? "Team 1";
+    team2Name = data.team2Name ?? "Team 2";
+    // Before halftime: team1 is CT, after: team1 is T
+    team1Side = halftime ? "T" : "CT";
+    team2Side = halftime ? "CT" : "T";
+    // Always show CT first, T second (sides are visual)
     team1Players = sortPlayers(ct);
     team2Players = sortPlayers(t);
   }
@@ -125,6 +142,9 @@ export default function MatchDetailPage() {
               <div className="mt-2 flex items-center gap-3">
                 <span className="text-3xl font-bold text-[var(--accent)]">
                   {data.score?.ct ?? 0} - {data.score?.t ?? 0}
+                </span>
+                <span className="text-xs text-[var(--muted)]">
+                  CT {data.score?.ct ?? 0} | T {data.score?.t ?? 0}
                 </span>
                 {isLive && (
                   <span className="rounded-full border border-[var(--success)]/40 bg-[var(--success)]/10 px-3 py-1 text-xs font-semibold text-[var(--success)]">
@@ -154,13 +174,15 @@ export default function MatchDetailPage() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <TeamPanel
             name={team1Name}
-            score={data.score?.ct ?? 0}
+            side={team1Side}
+            score={team1Side === "CT" ? (data.score?.ct ?? 0) : (data.score?.t ?? 0)}
             players={team1Players}
             expanded={expanded}
           />
           <TeamPanel
             name={team2Name}
-            score={data.score?.t ?? 0}
+            side={team2Side}
+            score={team2Side === "CT" ? (data.score?.ct ?? 0) : (data.score?.t ?? 0)}
             players={team2Players}
             expanded={expanded}
           />
@@ -179,19 +201,25 @@ export default function MatchDetailPage() {
 
 function TeamPanel({
   name,
+  side,
   score,
   players,
   expanded,
 }: {
   name: string;
+  side: string;
   score: number;
   players: PlayerMatchStats[];
   expanded: boolean;
 }) {
+  const sideColor = side === "CT" ? "text-[var(--accent)]" : "text-[var(--accent-2)]";
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/90 p-5 shadow-2xl backdrop-blur">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-bold text-[var(--foreground)]">{name}</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-bold text-[var(--foreground)]">{name}</h2>
+          <span className={`text-sm font-semibold ${sideColor}`}>({side})</span>
+        </div>
         <span className="text-2xl font-bold text-[var(--accent)]">{score}</span>
       </div>
 
@@ -243,9 +271,9 @@ function TeamPanel({
                   <th className="pb-1 px-2 text-center">HS%</th>
                   <th className="pb-1 px-2 text-center">ADR</th>
                   <th className="pb-1 px-2 text-center">UDmg</th>
-                  <th className="pb-1 px-2 text-center">Acc</th>
-                  <th className="pb-1 px-2 text-center">1v1</th>
-                  <th className="pb-1 px-2 text-center">Entry</th>
+                  <th className="pb-1 px-2 text-center">Flash</th>
+                  <th className="pb-1 px-2 text-center">Entry%</th>
+                  <th className="pb-1 px-2 text-center">Clutch</th>
                   <th className="pb-1 pl-2 text-center">Ping</th>
                 </tr>
               </thead>
@@ -261,11 +289,11 @@ function TeamPanel({
                       {p.totalDamage > 0 ? Math.round(p.totalDamage / Math.max(1, 30)) : 0}
                     </td>
                     <td className="py-1.5 px-2 text-center tabular-nums">{p.utilityDamage}</td>
-                    <td className="py-1.5 px-2 text-center tabular-nums">{accuracy(p)}</td>
+                    <td className="py-1.5 px-2 text-center tabular-nums">{p.flashAssists}</td>
+                    <td className="py-1.5 px-2 text-center tabular-nums">{entryWinPercent(p)}</td>
                     <td className="py-1.5 px-2 text-center tabular-nums">
-                      {p.oneVoneWins}/{p.oneVoneCount}
+                      {p.oneVoneCount > 0 ? `${p.oneVoneWins}/${p.oneVoneCount}` : "-"}
                     </td>
-                    <td className="py-1.5 px-2 text-center tabular-nums">{p.entryKills}</td>
                     <td className="py-1.5 pl-2 text-center tabular-nums">{p.ping}ms</td>
                   </tr>
                 ))}
