@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/src/backend/lib/db";
 import { getSession } from "@/src/backend/lib/session";
 import Match from "@/src/models/Match";
+import MatchResult from "@/src/models/MatchResult";
 import Lobby from "@/src/models/lobby";
 import { ROLES, hasRole } from "@/src/lib/config/settings";
 import { CS2_MAPS } from "@/src/backend/games/cs2/config/maps";
@@ -111,4 +112,33 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json({ matchId: match._id }, { status: 201 });
+}
+
+export async function GET(req: NextRequest) {
+  await connectDB();
+
+  const url = new URL(req.url);
+  const page = Math.max(1, parseInt(url.searchParams.get("page") ?? "1", 10));
+  const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get("limit") ?? "20", 10)));
+  const skip = (page - 1) * limit;
+
+  const [results, total] = await Promise.all([
+    MatchResult.find()
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .select("-team1.players -team2.players")
+      .lean(),
+    MatchResult.countDocuments(),
+  ]);
+
+  return NextResponse.json({
+    matches: results,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+    },
+  });
 }
