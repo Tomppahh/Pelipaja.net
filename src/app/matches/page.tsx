@@ -12,6 +12,7 @@ interface MatchSummary {
   score: { ct: number; t: number };
   team1: { name: string; score: number };
   team2: { name: string; score: number };
+  duration: number;
   createdAt: string;
 }
 
