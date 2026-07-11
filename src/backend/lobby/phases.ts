@@ -177,8 +177,10 @@ export async function finalizeLobbyAndStartServer(lobby: ILobby, matchId: string
     return;
   }
 
+  // Workshop maps use a built-in map for Docker STARTING_MAP (CS2 can't load workshop by name).
+  // The plugin will switch to the workshop map via host_workshop_map after receiving config.
   const map = lobby.settings.workshopMapId
-    ? (lobby.settings.workshopMapName ?? "workshop_map")
+    ? "de_mirage"
     : (lobby.mapVetoState?.remainingMaps[0] ?? lobby.settings.mapPool?.[0] ?? "de_mirage");
 
   lobby.phase = "starting";

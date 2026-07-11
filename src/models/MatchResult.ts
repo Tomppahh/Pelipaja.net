@@ -4,6 +4,7 @@ import type { PlayerMatchStats } from "@/src/lib/types/match";
 export interface IMatchResult extends Document {
   matchId: mongoose.Types.ObjectId;
   map: string;
+  isPublic: boolean;
   score: { ct: number; t: number };
   duration: number;
   team1: {
@@ -47,6 +48,7 @@ const MatchResultSchema = new Schema<IMatchResult>(
   {
     matchId: { type: Schema.Types.ObjectId, ref: "Match", required: true, index: true },
     map: { type: String, required: true },
+    isPublic: { type: Boolean, default: false },
     score: {
       ct: { type: Number, default: 0 },
       t: { type: Number, default: 0 },

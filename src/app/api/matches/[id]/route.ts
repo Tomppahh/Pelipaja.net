@@ -15,7 +15,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const lobby = await Lobby.findOne({ matchId: id });
-  const map = (match.gameConfig as any)?.map ?? lobby?.mapVetoState?.remainingMaps?.[0] ?? lobby?.settings.mapPool?.[0];
+  const map = (match.gameConfig as any)?.map ?? lobby?.settings.workshopMapName ?? lobby?.mapVetoState?.remainingMaps?.[0] ?? lobby?.settings.mapPool?.[0];
   const mode = (match.gameConfig as any)?.mode ?? lobby?.settings.mode;
 
   // Determine ownership/admin status for the current session
