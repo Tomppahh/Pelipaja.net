@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/src/backend/lib/db";
+import { getSession } from "@/src/backend/lib/session";
 import Match from "@/src/models/Match";
 import MatchResult from "@/src/models/MatchResult";
 
@@ -7,6 +8,9 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const user = await getSession();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   await connectDB();
   const { id } = await params;
 
