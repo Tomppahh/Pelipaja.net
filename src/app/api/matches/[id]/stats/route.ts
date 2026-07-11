@@ -22,18 +22,11 @@ export async function GET(
 
   const lobby = await Lobby.findOne({ matchId: id }).lean();
 
-  // Get team names from lobby captains
+  // Get team names from lobby captains — "Team <captain name>"
   function getTeamName(team: "team1" | "team2"): string {
     if (!lobby) return team === "team1" ? "Team 1" : "Team 2";
     const captain = lobby.players.find(p => p.team === team && p.isCaptain);
-    if (captain) {
-      const otherTeam = team === "team1" ? "team2" : "team1";
-      const otherCaptain = lobby.players.find(p => p.team === otherTeam && p.isCaptain);
-      if (otherCaptain) {
-        return `${captain.displayName} (${team === "team1" ? "CT" : "T"})`;
-      }
-      return captain.displayName;
-    }
+    if (captain) return `Team ${captain.displayName}`;
     return team === "team1" ? "Team 1" : "Team 2";
   }
 
