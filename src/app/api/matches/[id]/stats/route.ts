@@ -3,6 +3,7 @@ import { connectDB } from "@/src/backend/lib/db";
 import { getSession } from "@/src/backend/lib/session";
 import Match from "@/src/models/Match";
 import MatchResult from "@/src/models/MatchResult";
+import Lobby from "@/src/models/lobby";
 
 export async function GET(
   _req: NextRequest,
@@ -19,13 +20,34 @@ export async function GET(
     return NextResponse.json({ error: "Match not found" }, { status: 404 });
   }
 
+  const lobby = await Lobby.findOne({ matchId: id }).lean();
+
+  // Get team names from lobby captains
+  function getTeamName(team: "team1" | "team2"): string {
+    if (!lobby) return team === "team1" ? "Team 1" : "Team 2";
+    const captain = lobby.players.find(p => p.team === team && p.isCaptain);
+    if (captain) {
+      const otherTeam = team === "team1" ? "team2" : "team1";
+      const otherCaptain = lobby.players.find(p => p.team === otherTeam && p.isCaptain);
+      if (otherCaptain) {
+        return `${captain.displayName} (${team === "team1" ? "CT" : "T"})`;
+      }
+      return captain.displayName;
+    }
+    return team === "team1" ? "Team 1" : "Team 2";
+  }
+
   // For finished matches, return from database
   if (match.status === "finished" || match.status === "cancelled") {
     const result = await MatchResult.findOne({ matchId: id }).lean();
     return NextResponse.json({
       status: match.status,
       source: "database",
-      data: result ?? null,
+      data: result ? {
+        ...result,
+        team1: { ...result.team1, name: getTeamName("team1") },
+        team2: { ...result.team2, name: getTeamName("team2") },
+      } : null,
     });
   }
 
@@ -57,7 +79,11 @@ export async function GET(
       return NextResponse.json({
         status: match.status,
         source: "plugin",
-        data: stats,
+        data: {
+          ...stats,
+          team1Name: getTeamName("team1"),
+          team2Name: getTeamName("team2"),
+        },
       });
     } catch {
       return NextResponse.json({

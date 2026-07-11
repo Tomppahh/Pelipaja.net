@@ -15,6 +15,8 @@ export interface PlayerMatchStats {
   shotsOnTarget: number;
   totalDamage: number;
   entryKills: number;
+  entryDeaths: number;
+  entryCount: number;
   oneVoneCount: number;
   oneVoneWins: number;
 }
