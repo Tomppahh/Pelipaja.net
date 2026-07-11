@@ -110,7 +110,7 @@ export async function advanceBotCaptainPicks(matchId: string) {
     lobby.captainPickState.currentTurn = currentTurn === "team1" ? "team2" : "team1";
 
     if (lobby.captainPickState.unpickedPlayers.length === 0) {
-      await startMapVeto(lobby, matchId);
+      await proceedAfterCaptainPick(lobby, matchId);
       return;
     }
 
@@ -137,6 +137,16 @@ export async function startMapVeto(lobby: ILobby, matchId: string) {
 
   await lobby.save();
   broadcastLobbyUpdate(matchId, lobby.toObject());
+}
+
+// After captains finish picking players, either start a map veto
+// (captain_map_veto) or go straight to a fixed/chooseable map (captain_pick).
+export async function proceedAfterCaptainPick(lobby: ILobby, matchId: string) {
+  if (lobby.settings.mode === "captain_pick") {
+    await finalizeLobbyAndStartServer(lobby, matchId);
+  } else {
+    await startMapVeto(lobby, matchId);
+  }
 }
 
 // Schedules a single bot veto turn after a short delay, then re-schedules if still a bot's turn
