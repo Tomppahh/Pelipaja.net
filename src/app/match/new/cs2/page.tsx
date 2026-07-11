@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { CS2_MAPS } from "@/src/backend/games/cs2/config/maps";
-import { CS2_MODES } from "@/src/backend/games/cs2/config/modes";
+import { CS2_MODES, CS2_LOBBY_MODES, type LobbyModeId } from "@/src/backend/games/cs2/config/modes";
 
 function parseWorkshopId(input: string): string | null {
   const trimmed = input.trim();
@@ -18,6 +18,7 @@ function parseWorkshopId(input: string): string | null {
 export default function CreateCS2MatchPage() {
   const router = useRouter();
   const [selectedMode, setSelectedMode] = useState(CS2_MODES[0]);
+  const [lobbyType, setLobbyType] = useState<LobbyModeId>("use_current_teams");
   const [selectedMap, setSelectedMap] = useState(CS2_MAPS[0]);
   const [teamSize, setTeamSize] = useState(CS2_MODES[0].defaultTeamSize);
   const [loading, setLoading] = useState(false);
@@ -78,22 +79,29 @@ export default function CreateCS2MatchPage() {
     }
 
     try {
+      const gameConfig: Record<string, unknown> = {
+        mode: selectedMode.id,
+        knifeRound: selectedMode.id === "competitive",
+        isPublic,
+        name: lobbyName.trim() || undefined,
+        password: lobbyPassword || undefined,
+      };
+
+      // Only a specific map (official or workshop) needs to be sent for
+      // "Play a Map". Map-veto / captain-pick modes decide the map in-lobby.
+      if (lobbyType === "use_current_teams") {
+        gameConfig.map = mapName;
+        if (useWorkshop) gameConfig.workshopId = workshopId;
+      }
+
       const res = await fetch("/api/matches", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           gameType: "cs2",
-          lobbyMode: "use_current_teams",
+          lobbyMode: lobbyType,
           teamSize,
-          gameConfig: {
-            map: mapName,
-            workshopId,
-            mode: selectedMode.id,
-            knifeRound: selectedMode.id === "competitive",
-            isPublic,
-            name: lobbyName.trim() || undefined,
-            password: lobbyPassword || undefined,
-          },
+          gameConfig,
         }),
       });
 
@@ -157,6 +165,29 @@ export default function CreateCS2MatchPage() {
       </div>
 
       <div>
+        <h2 className="pt-3 text-[var(--muted)]">Lobby Type</h2>
+        <div className="flex flex-wrap gap-2">
+          {CS2_LOBBY_MODES.map((mode) => {
+            const isSelected = lobbyType === mode.id;
+            return (
+              <button
+                key={mode.id}
+                onClick={() => setLobbyType(mode.id)}
+                className={`rounded-lg border px-4 py-2 text-left text-sm font-semibold transition ${
+                  isSelected
+                    ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+                    : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
+                }`}
+              >
+                <div>{mode.label}</div>
+                <div className="mt-0.5 text-xs font-normal opacity-80">{mode.hint}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
         <h2 className="pt-3 text-[var(--muted)]">Team Size</h2>
         <input
           type="number"
@@ -168,6 +199,7 @@ export default function CreateCS2MatchPage() {
         <span> players per team</span>
       </div>
 
+      {lobbyType === "use_current_teams" && (
       <div>
         <h2 className="pt-3 text-[var(--muted)]">Map</h2>
 
@@ -244,6 +276,7 @@ export default function CreateCS2MatchPage() {
           </div>
         )}
       </div>
+      )}
 
       <div>
         <h2 className="pt-3 text-[var(--muted)]">Lobby Visibility</h2>

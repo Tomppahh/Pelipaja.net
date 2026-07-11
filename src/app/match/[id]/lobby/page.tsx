@@ -1,15 +1,6 @@
 "use client";
 
-// ── Lobby modes ───────────────────────────────────────────────────────────────
-
-const LOBBY_MODES = [
-  { id: "pick_map",          label: "Use Current Teams" },
-  { id: "captain_map_veto",  label: "Captain Pick Teams" },
-  
-] as const;
-type LobbyMode = "use_current_teams" | (typeof LOBBY_MODES)[number]["id"];
-
-// ── Imports ───────────────────────────────────────────────────────────────────
+// ── Imports ─────────────────────────────────────────────────────────
 
 import { useMemo, useEffect, useRef, useState, type FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -17,8 +8,12 @@ import { Card } from "@/src/app/components/ui/card";
 import { Button } from "@/src/app/components/ui/button";
 import { Toast } from "@/src/app/components/ui/toast";
 import { Muted, PageTitle } from "@/src/app/components/ui/typography";
+import { CS2_LOBBY_MODES, type LobbyModeId } from "@/src/backend/games/cs2/config/modes";
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────
+
+const LOBBY_MODES = CS2_LOBBY_MODES;
+type LobbyMode = LobbyModeId;
 
 type Team  = "team1" | "team2" | "none";
 type Phase = "waiting" | "ready_check" | "captain_pick" | "map_veto" | "starting";
@@ -317,7 +312,7 @@ export default function LobbyPage() {
       {canEditSettings && (
         <section className="mb-8 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 p-8 shadow-2xl backdrop-blur">
           <h2 className="mb-2 font-display text-2xl font-bold tracking-tight text-[var(--foreground)]">Lobby Settings</h2>
-          <p className="text-sm text-[var(--muted)]">Update the lobby before starting the ready check. After ready check and team picks there will be a map veto between captains</p>
+          <p className="text-sm text-[var(--muted)]">Pick how teams are formed and how the map is chosen. For map-veto modes the map is decided in-lobby, so no map is selected here.</p>
 
           <div className="mt-6">
             <p className="mb-2 text-sm text-[var(--muted)]">Lobby mode</p>
