@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { CS2_MAPS } from "@/src/backend/games/cs2/config/maps";
 import { CS2_MODES } from "@/src/backend/games/cs2/config/modes";
@@ -22,6 +22,8 @@ export default function CreateCS2MatchPage() {
   const [teamSize, setTeamSize] = useState(CS2_MODES[0].defaultTeamSize);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [authChecked, setAuthChecked] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(false);
 
   // Workshop map
   const [useWorkshop, setUseWorkshop] = useState(false);
@@ -32,6 +34,19 @@ export default function CreateCS2MatchPage() {
   const [isPublic, setIsPublic] = useState(false);
   const [lobbyName, setLobbyName] = useState("");
   const [lobbyPassword, setLobbyPassword] = useState("");
+
+  useEffect(() => {
+    fetch("/api/me")
+      .then(r => r.json())
+      .then(d => {
+        setLoggedIn(!!d.steamId);
+        setAuthChecked(true);
+      })
+      .catch(() => {
+        setLoggedIn(false);
+        setAuthChecked(true);
+      });
+  }, []);
 
   function handleModeChange(modeId: string) {
     const mode = CS2_MODES.find(m => m.id === modeId)!;
@@ -68,6 +83,8 @@ export default function CreateCS2MatchPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           gameType: "cs2",
+          lobbyMode: "use_current_teams",
+          teamSize,
           gameConfig: {
             map: mapName,
             workshopId,
@@ -77,7 +94,6 @@ export default function CreateCS2MatchPage() {
             name: lobbyName.trim() || undefined,
             password: lobbyPassword || undefined,
           },
-          playersPerTeam: teamSize,
         }),
       });
 
@@ -94,7 +110,7 @@ export default function CreateCS2MatchPage() {
         return;
       }
 
-      router.push(`/match/${data.matchId}`);
+      router.push(`/match/${data.matchId}/lobby`);
 
     } catch {
       setError("Failed to create match");
@@ -104,7 +120,17 @@ export default function CreateCS2MatchPage() {
 
   return (
     <div>
-      <h1>Create CS2 Match</h1>
+      {authChecked && !loggedIn ? (
+        <div className="flex flex-col items-center gap-4 py-16">
+          <h1 className="text-2xl font-bold text-[var(--foreground)]">Log in required</h1>
+          <p className="text-sm text-[var(--muted)]">You need to be logged in with Steam to create a match.</p>
+          <a href="/api/auth/steam" className="rounded-lg bg-[var(--accent)] px-6 py-2.5 font-semibold text-[var(--accent-contrast)] transition hover:brightness-110">
+            Log in with Steam
+          </a>
+        </div>
+      ) : (
+        <>
+          <h1>Create CS2 Match</h1>
 
       <div className="flex flex-col gap-2">
         <h2 className="pt-3 text-[var(--muted)]">Game Mode</h2>
@@ -284,6 +310,8 @@ export default function CreateCS2MatchPage() {
       >
         {loading ? "Creating..." : "Create Match"}
       </button>
+        </>
+      )}
     </div>
   );
 }

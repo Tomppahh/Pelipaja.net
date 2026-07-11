@@ -9,7 +9,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const user = await getSession();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "You must be logged in to view match stats." }, { status: 401 });
 
   await connectDB();
   const { id } = await params;

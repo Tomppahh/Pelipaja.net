@@ -10,7 +10,7 @@ export async function GET(
 ) {
   const user = await getSession();
   if (!user) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+    return new Response(JSON.stringify({ error: "You must be logged in to connect to lobby events." }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
     });

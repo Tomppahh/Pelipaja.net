@@ -11,13 +11,13 @@ export async function GET(req: NextRequest) {
   const skip = (page - 1) * limit;
 
   const [lobbies, total] = await Promise.all([
-    Lobby.find({ isPublic: true, phase: "waiting" })
+    Lobby.find({ "settings.isPublic": true, phase: "waiting" })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .select("matchId leaderId settings phase players createdAt")
       .lean(),
-    Lobby.countDocuments({ isPublic: true, phase: "waiting" }),
+    Lobby.countDocuments({ "settings.isPublic": true, phase: "waiting" }),
   ]);
 
   const result = lobbies.map((lobby) => {

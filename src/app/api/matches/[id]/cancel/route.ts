@@ -11,7 +11,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
   const user = await getSession();
 
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) return NextResponse.json({ error: 'You must be logged in to cancel a match.' }, { status: 401 });
 
   const match = await Match.findById(id);
   if (!match) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -24,7 +24,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const isLeader = lobby?.leaderId === user.steamId;
 
   if (!(isAdmin || isLeader || (!lobby && isOwner))) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    return NextResponse.json({ error: 'Only the lobby leader, match owner, or an admin can cancel this match.' }, { status: 403 });
   }
 
   try {

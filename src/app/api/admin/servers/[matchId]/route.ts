@@ -9,8 +9,11 @@ export async function DELETE(
   { params }: { params: Promise<{ matchId: string }> }
 ) {
   const user = await getSession();
-  if (!user || user.role !== "admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!user) {
+    return NextResponse.json({ error: "You must be logged in to stop a server." }, { status: 401 });
+  }
+  if (user.role !== "admin") {
+    return NextResponse.json({ error: "Stopping servers is restricted to admins." }, { status: 403 });
   }
 
   const { matchId } = await params;

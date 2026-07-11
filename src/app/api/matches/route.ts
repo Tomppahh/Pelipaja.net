@@ -15,20 +15,20 @@ const VALID_MAP_NAME = /^[a-zA-Z0-9_\-]{1,64}$/;
 
 export async function POST(req: NextRequest) {
   const user = await getSession();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!hasRole(user.role, ROLES.lobby)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!user) return NextResponse.json({ error: "You must be logged in to create a match." }, { status: 401 });
+  if (!hasRole(user.role, ROLES.lobby)) return NextResponse.json({ error: "Your account does not have permission to create matches." }, { status: 403 });
 
   await connectDB();
 
   const body = await req.json();
   const { gameType, lobbyMode, teamSize, playersPerTeam, gameConfig } = body;
-  const isLegacyCs2 = gameConfig != null;
+  const isLobbyMode = lobbyMode != null && VALID_LOBBY_MODES.includes(lobbyMode);
   const resolvedTeamSize = typeof teamSize === "number" ? teamSize : playersPerTeam;
 
   if (!VALID_GAME_TYPES.includes(gameType)) {
     return NextResponse.json({ error: "Invalid game type" }, { status: 400 });
   }
-  if (!isLegacyCs2 && !VALID_LOBBY_MODES.includes(lobbyMode)) {
+  if (!isLobbyMode && !gameConfig) {
     return NextResponse.json({ error: "Invalid lobby mode" }, { status: 400 });
   }
   if (typeof resolvedTeamSize !== "number" || resolvedTeamSize < 1 || resolvedTeamSize > 10) {
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
 
   const match = await Match.create({
     gameType,
-    gameConfig: isLegacyCs2
+    gameConfig: !isLobbyMode && gameConfig
       ? {
           ...(gameConfig as Record<string, unknown>),
           ownerName: user.displayName ?? user.steamId,
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
     status: "pending",
   });
 
-  if (isLegacyCs2) {
+  if (!isLobbyMode) {
     const { createServer } = await import("@/src/backend/services/gameServerService");
     const map = typeof gameConfig?.map === "string" ? gameConfig.map : CS2_MAPS[0];
 
