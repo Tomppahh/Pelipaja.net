@@ -21,6 +21,7 @@ export type LobbySettings = {
   teamSize: number;
   mode: LobbyMode;
   mapPool?: string[];
+  map?: string;
   workshopMapId?: string;
   workshopMapName?: string;
   isPublic?: boolean;

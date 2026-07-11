@@ -181,7 +181,7 @@ export async function finalizeLobbyAndStartServer(lobby: ILobby, matchId: string
   // The plugin will switch to the workshop map via host_workshop_map after receiving config.
   const map = lobby.settings.workshopMapId
     ? "de_mirage"
-    : (lobby.mapVetoState?.remainingMaps[0] ?? lobby.settings.mapPool?.[0] ?? "de_mirage");
+    : (lobby.mapVetoState?.remainingMaps[0] ?? lobby.settings.map ?? lobby.settings.mapPool?.[0] ?? "de_mirage");
 
   lobby.phase = "starting";
   await lobby.save();

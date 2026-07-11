@@ -111,6 +111,11 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Chosen official map (ignored for workshop maps, which use the veto/workshop flow)
+  const rawMap = typeof rawMapName === "string" && !rawWorkshopId && VALID_MAP_NAME.test(rawMapName)
+    ? rawMapName
+    : undefined;
+
   // Creator is added to the lobby immediately so they don't need to "join" on page load
   const rawPassword = (gameConfig as Record<string, unknown>)?.password as string | undefined;
   const hashedPassword = rawPassword ? await bcrypt.hash(rawPassword, 10) : undefined;
@@ -122,6 +127,7 @@ export async function POST(req: NextRequest) {
       teamSize: resolvedTeamSize,
       mode: lobbyMode,
       mapPool: CS2_MAPS,
+      map: rawMap,
       workshopMapId: rawWorkshopId,
       workshopMapName: rawMapName,
       isPublic: !!(gameConfig as Record<string, unknown>)?.isPublic,
