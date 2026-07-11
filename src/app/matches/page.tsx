@@ -7,6 +7,7 @@ import { PageTitle, Muted } from "@/src/app/components/ui/typography";
 
 interface MatchSummary {
   _id: string;
+  matchId: string;
   map: string;
   score: { ct: number; t: number };
   team1: { name: string; score: number };
@@ -185,7 +186,7 @@ export default function MatchesPage() {
               {matches.map((m) => (
                 <Link
                   key={m._id}
-                  href={`/matches/${m._id}`}
+                  href={`/matches/${m.matchId}`}
                   className="group flex items-center gap-4 rounded-xl border border-transparent bg-[var(--surface)]/50 px-4 py-3 transition hover:border-[var(--border)] hover:bg-[var(--surface)] sm:px-5 sm:py-4"
                 >
                   {/* Team 1 */}
