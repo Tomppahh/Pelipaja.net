@@ -12,6 +12,8 @@ mongoose.connection.on("error", (err) => {
   console.error("[DB] MongoDB connection error:", err.message);
 });
 
+let cleanupInitialized = false;
+
 export async function connectDB(): Promise<void> {
   if (mongoose.connection.readyState === 1) return;
 
@@ -20,4 +22,10 @@ export async function connectDB(): Promise<void> {
   }
 
   await mongoose.connect(uri);
+
+  if (!cleanupInitialized) {
+    cleanupInitialized = true;
+    const { ensureLobbyCleanupStarted } = await import("@/src/backend/services/lobbyCleanup");
+    ensureLobbyCleanupStarted();
+  }
 }

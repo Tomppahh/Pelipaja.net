@@ -261,12 +261,42 @@ export async function getServerStatus() {
   };
 }
 
-export async function destroyServer(gameId: string) {
+export async function destroyServer(gameId: string, workshopIds?: string[]) {
   await removeContainer(`pelipaja-${gameId}`);
   await removeContainer(`frpc-${gameId}`);
   await removeNetwork(`net-${gameId}`);
   activeGameIds.delete(gameId);
+
+  if (workshopIds && workshopIds.length > 0) {
+    await cleanupWorkshopMaps(workshopIds);
+  }
+
   log(`Server ${gameId} destroyed`);
+}
+
+async function cleanupWorkshopMaps(workshopIds: string[]) {
+  const rmPaths = workshopIds
+    .filter(id => /^\d{5,20}$/.test(id))
+    .map(id => `/data/steamapps/workshop/content/730/${id}`)
+    .join(" ");
+
+  if (!rmPaths) return;
+
+  try {
+    const cleanup = await docker.createContainer({
+      Image: "alpine:latest",
+      Cmd: ["sh", "-c", `rm -rf ${rmPaths}`],
+      HostConfig: {
+        Binds: ["cs2_gamefiles:/data"],
+        AutoRemove: true,
+      },
+    });
+    await cleanup.start();
+    await cleanup.wait();
+    log(`Cleaned up workshop maps: ${workshopIds.join(", ")}`);
+  } catch (err) {
+    console.error("[Pelipaja] Workshop cleanup failed:", err);
+  }
 }
 
 export async function destroyAll() {

@@ -21,6 +21,11 @@ export type LobbySettings = {
   teamSize: number;
   mode: LobbyMode;
   mapPool?: string[];
+  workshopMapId?: string;
+  workshopMapName?: string;
+  isPublic?: boolean;
+  password?: string;
+  name?: string;
 };
 
 export type LobbyMessage = {
@@ -125,6 +130,11 @@ const LobbySchema = new Schema<ILobby>(
       teamSize: { type: Number, default: 5 },
       mode: { type: String, default: "use_current_teams" },
       mapPool: { type: [String], default: CS2_MAPS },
+      workshopMapId: { type: String, maxlength: 32 },
+      workshopMapName: { type: String, maxlength: 64 },
+      isPublic: { type: Boolean, default: false },
+      password: { type: String },
+      name: { type: String, maxlength: 60 },
     },
     messages: { type: [MessageSchema], default: [] },
     coinFlipWinner: { type: String, enum: ["team1", "team2"] },

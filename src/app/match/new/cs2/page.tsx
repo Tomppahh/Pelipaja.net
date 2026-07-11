@@ -5,6 +5,16 @@ import { useRouter } from "next/navigation";
 import { CS2_MAPS } from "@/src/backend/games/cs2/config/maps";
 import { CS2_MODES } from "@/src/backend/games/cs2/config/modes";
 
+function parseWorkshopId(input: string): string | null {
+  const trimmed = input.trim();
+  // Pure numeric ID
+  if (/^\d{5,20}$/.test(trimmed)) return trimmed;
+  // Steam Workshop URL
+  const match = trimmed.match(/[?&]id=(\d{5,20})/);
+  if (match) return match[1];
+  return null;
+}
+
 export default function CreateCS2MatchPage() {
   const router = useRouter();
   const [selectedMode, setSelectedMode] = useState(CS2_MODES[0]);
@@ -12,6 +22,16 @@ export default function CreateCS2MatchPage() {
   const [teamSize, setTeamSize] = useState(CS2_MODES[0].defaultTeamSize);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Workshop map
+  const [useWorkshop, setUseWorkshop] = useState(false);
+  const [workshopInput, setWorkshopInput] = useState("");
+  const [workshopName, setWorkshopName] = useState("");
+
+  // Public lobby
+  const [isPublic, setIsPublic] = useState(false);
+  const [lobbyName, setLobbyName] = useState("");
+  const [lobbyPassword, setLobbyPassword] = useState("");
 
   function handleModeChange(modeId: string) {
     const mode = CS2_MODES.find(m => m.id === modeId)!;
@@ -23,6 +43,25 @@ export default function CreateCS2MatchPage() {
     setLoading(true);
     setError("");
 
+    let mapName = selectedMap;
+    let workshopId: string | undefined;
+
+    if (useWorkshop) {
+      const parsed = parseWorkshopId(workshopInput);
+      if (!parsed) {
+        setError("Invalid Steam Workshop URL or ID");
+        setLoading(false);
+        return;
+      }
+      if (!workshopName.trim()) {
+        setError("Enter a map name for the workshop map (e.g. de_mymap)");
+        setLoading(false);
+        return;
+      }
+      workshopId = parsed;
+      mapName = workshopName.trim().toLowerCase().replace(/[^a-z0-9_\-]/g, "_");
+    }
+
     try {
       const res = await fetch("/api/matches", {
         method: "POST",
@@ -30,9 +69,13 @@ export default function CreateCS2MatchPage() {
         body: JSON.stringify({
           gameType: "cs2",
           gameConfig: {
-            map: selectedMap,
+            map: mapName,
+            workshopId,
             mode: selectedMode.id,
             knifeRound: selectedMode.id === "competitive",
+            isPublic,
+            name: lobbyName.trim() || undefined,
+            password: lobbyPassword || undefined,
           },
           playersPerTeam: teamSize,
         }),
@@ -51,7 +94,6 @@ export default function CreateCS2MatchPage() {
         return;
       }
 
-      // Redirect to match page
       router.push(`/match/${data.matchId}`);
 
     } catch {
@@ -102,28 +144,138 @@ export default function CreateCS2MatchPage() {
 
       <div>
         <h2 className="pt-3 text-[var(--muted)]">Map</h2>
-        <div className="flex flex-wrap gap-2">
-          {CS2_MAPS.map((map) => {
-            const isSelectedMap = selectedMap === map;
 
-            return (
-              <button
-                key={map}
-                onClick={() => setSelectedMap(map)}
-                className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
-                  isSelectedMap
-                    ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
-                    : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
-                }`}
-              >
-                {map}
-              </button>
-            );
-          })}
+        {/* Toggle */}
+        <div className="mb-3 flex gap-2">
+          <button
+            onClick={() => setUseWorkshop(false)}
+            className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
+              !useWorkshop
+                ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+                : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
+            }`}
+          >
+            Official Maps
+          </button>
+          <button
+            onClick={() => setUseWorkshop(true)}
+            className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
+              useWorkshop
+                ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+                : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
+            }`}
+          >
+            Workshop Map
+          </button>
         </div>
+
+        {!useWorkshop ? (
+          <div className="flex flex-wrap gap-2">
+            {CS2_MAPS.map((map) => {
+              const isSelectedMap = selectedMap === map;
+
+              return (
+                <button
+                  key={map}
+                  onClick={() => setSelectedMap(map)}
+                  className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
+                    isSelectedMap
+                      ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+                      : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
+                  }`}
+                >
+                  {map}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[var(--muted)]">
+                Steam Workshop URL or ID
+              </label>
+              <input
+                type="text"
+                value={workshopInput}
+                onChange={e => setWorkshopInput(e.target.value)}
+                placeholder="https://steamcommunity.com/sharedfiles/filedetails/?id=3071055446"
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[var(--muted)]">
+                Map name (used by the server)
+              </label>
+              <input
+                type="text"
+                value={workshopName}
+                onChange={e => setWorkshopName(e.target.value)}
+                placeholder="de_mymap"
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      <div>
+        <h2 className="pt-3 text-[var(--muted)]">Lobby Visibility</h2>
+        <div className="mb-3 flex gap-2">
+          <button
+            onClick={() => setIsPublic(false)}
+            className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
+              !isPublic
+                ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+                : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
+            }`}
+          >
+            Private
+          </button>
+          <button
+            onClick={() => setIsPublic(true)}
+            className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
+              isPublic
+                ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+                : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
+            }`}
+          >
+            Public
+          </button>
+        </div>
+
+        {isPublic && (
+          <div className="flex flex-col gap-3">
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[var(--muted)]">
+                Lobby Name (optional)
+              </label>
+              <input
+                type="text"
+                value={lobbyName}
+                onChange={e => setLobbyName(e.target.value)}
+                maxLength={60}
+                placeholder="My CS2 Lobby"
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[var(--muted)]">
+                Password (optional)
+              </label>
+              <input
+                type="password"
+                value={lobbyPassword}
+                onChange={e => setLobbyPassword(e.target.value)}
+                placeholder="Leave open for anyone to join"
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
 
       <button
         onClick={handleSubmit}

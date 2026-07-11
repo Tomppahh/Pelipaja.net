@@ -31,6 +31,7 @@ export default function AdminPage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [soloTesting, setSoloTesting] = useState(false);
   const [selectedMap, setSelectedMap] = useState(CS2_MAPS[0]);
   const [teamSize, setTeamSize] = useState(5);
   const [toast, setToast] = useState<{ message: string; variant: "error" | "success" } | null>(null);
@@ -136,6 +137,27 @@ export default function AdminPage() {
     setCreating(false);
   }
 
+  async function createSoloTest() {
+    setSoloTesting(true);
+    try {
+      const res = await fetch("/api/admin/solo-test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ map: selectedMap, teamSize }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setToast({ message: `Solo test started! Match: ${data.matchId}`, variant: "success" });
+        fetchMatches();
+      } else {
+        setToast({ message: data.error ?? "Failed to create solo test", variant: "error" });
+      }
+    } catch {
+      setToast({ message: "Failed to create solo test", variant: "error" });
+    }
+    setSoloTesting(false);
+  }
+
   useEffect(() => {
     fetchMatches();
   }, []);
@@ -202,6 +224,9 @@ export default function AdminPage() {
             </div>
             <Button onClick={createServer} disabled={creating}>
               {creating ? "Creating..." : "Create Server"}
+            </Button>
+            <Button onClick={createSoloTest} disabled={soloTesting} variant="secondary">
+              {soloTesting ? "Starting..." : "Solo Test"}
             </Button>
           </div>
         </div>

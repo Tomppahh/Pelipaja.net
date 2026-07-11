@@ -32,7 +32,8 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     await match.save();
 
     if (match.gameId) {
-      try { await destroyServer(match.gameId); } catch (err) { console.error('Failed to destroy server on cancel:', err); }
+      const workshopId = lobby?.settings.workshopMapId;
+      try { await destroyServer(match.gameId, workshopId ? [workshopId] : undefined); } catch (err) { console.error('Failed to destroy server on cancel:', err); }
     }
 
     if (lobby) {

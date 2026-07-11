@@ -10,6 +10,7 @@ import {
   validateLobbyCanStart,
 } from "./phases";
 import { ActionContext, SessionUser } from "./types";
+import bcrypt from "bcrypt";
 
 type ActionHandler = (ctx: ActionContext) => Promise<NextResponse>;
 
@@ -25,9 +26,16 @@ function isPrivileged(lobby: ILobby, user: SessionUser) {
 
 // ─── Player actions ───────────────────────────────────────────────────────────
 
-async function join({ lobby, user, matchId }: ActionContext): Promise<NextResponse> {
+async function join({ lobby, user, body, matchId }: ActionContext): Promise<NextResponse> {
   const alreadyIn = lobby.players.some(p => p.steamId === user.steamId);
   if (!alreadyIn) {
+    // Check password if lobby is password-protected
+    if (lobby.settings.password) {
+      const provided = typeof body?.password === "string" ? body.password : "";
+      if (!provided) return error("This lobby requires a password", 403);
+      const valid = await bcrypt.compare(provided, lobby.settings.password);
+      if (!valid) return error("Invalid password", 403);
+    }
     const newPlayer: LobbyPlayer = {
       steamId: user.steamId,
       displayName: user.displayName ?? user.steamId,
@@ -329,8 +337,16 @@ async function transferLeader({ lobby, user, body, matchId }: ActionContext): Pr
 
 async function updateSettings({ lobby, user, body, matchId }: ActionContext): Promise<NextResponse> {
   if (!isPrivileged(lobby, user)) return error("Forbidden", 403);
+  if (lobby.phase !== "waiting") return error("Cannot change settings after ready check", 400);
 
-  lobby.settings = { ...lobby.settings, ...(body.settings as object) };
+  const incoming = body.settings as Record<string, unknown>;
+  if (!incoming || typeof incoming !== "object") return error("Invalid settings", 400);
+
+  const allowed: Record<string, unknown> = {};
+  if (typeof incoming.mode === "string") allowed.mode = incoming.mode;
+  if (typeof incoming.teamSize === "number") allowed.teamSize = incoming.teamSize;
+
+  lobby.settings = { ...lobby.settings, ...allowed };
   await lobby.save();
   broadcastLobbyUpdate(matchId, lobby.toObject());
   return NextResponse.json(lobby);
@@ -448,6 +464,8 @@ async function mapVeto({ lobby, user, body, matchId }: ActionContext): Promise<N
   if (!captain || captain.team !== currentTurn) return error("Not your turn", 403);
 
   const { map, vetoAction } = body as { map: string; vetoAction: "ban" | "pick" };
+  if (!remainingMaps.includes(map)) return error("Map not in pool", 400);
+
   lobby.mapVetoState.vetoHistory.push({ team: currentTurn, map, action: vetoAction });
   lobby.mapVetoState.remainingMaps = remainingMaps.filter(m => m !== map);
   lobby.mapVetoState.currentTurn = currentTurn === "team1" ? "team2" : "team1";
