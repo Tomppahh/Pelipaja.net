@@ -37,8 +37,12 @@ export async function POST(
 
   try {
     if (status === "configuring") {
-      // Pull the lobby so we can send the real team rosters
       const lobby = await Lobby.findOne({ matchId: id });
+
+      // Solo test matches have no lobby — they send config directly, so skip.
+      if (!lobby) {
+        return NextResponse.json({ ok: true });
+      }
 
       const team1Players = (lobby?.players ?? [])
         .filter(p => p.team === "team1")
