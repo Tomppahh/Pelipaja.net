@@ -152,9 +152,6 @@ export default function MatchDetailPage() {
                 <span className="text-3xl font-bold text-[var(--accent)]">
                   {data.score?.ct ?? 0} - {data.score?.t ?? 0}
                 </span>
-                <span className="text-xs text-[var(--muted)]">
-                  CT {data.score?.ct ?? 0} | T {data.score?.t ?? 0}
-                </span>
                 {isLive && (
                   <span className="rounded-full border border-[var(--success)]/40 bg-[var(--success)]/10 px-3 py-1 text-xs font-semibold text-[var(--success)]">
                     LIVE {data.round != null && `R${data.round}`}
