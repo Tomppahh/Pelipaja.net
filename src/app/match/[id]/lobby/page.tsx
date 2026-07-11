@@ -51,7 +51,7 @@ interface Lobby {
   leaderId: string;
   players: LobbyPlayer[];
   messages?: LobbyMessage[];
-  settings: { teamSize: number; mode: string; mapPool?: string[]; name?: string; isPublic?: boolean; workshopMapName?: string };
+  settings: { teamSize: number; mode: string; mapPool?: string[]; name?: string; isPublic?: boolean; workshopMapName?: string; map?: string };
   phase: Phase;
   captainPickState?: { currentTurn: Team; unpickedPlayers: string[] };
   mapVetoState?: {
@@ -120,7 +120,7 @@ export default function LobbyPage() {
   const isServerReady  = match?.status === "ready" || match?.status === "live";
   const connectString  = match?.connectionIp && match?.connectionPort
     ? `connect ${match.connectionIp}:${match.connectionPort}` : null;
-  const readyMap       = match?.map ?? lobby?.settings.workshopMapName ?? lobby?.mapVetoState?.remainingMaps?.[0] ?? lobby?.settings.mapPool?.[0];
+  const readyMap       = match?.map ?? lobby?.settings.workshopMapName ?? lobby?.settings.map ?? lobby?.mapVetoState?.remainingMaps?.[0] ?? lobby?.settings.mapPool?.[0];
 
   const isMyCaptainTurn =
     lobby?.phase === "captain_pick" &&
