@@ -52,10 +52,6 @@ export async function POST(
         (match.gameConfig as Record<string, unknown>).map as string ??
         "de_mirage";
 
-      console.log("Lobby players:", lobby?.players);
-      console.log("Team1:", team1Players);
-      console.log("Team2:", team2Players);
-
       await fetch(`http://${process.env.HOME_PC_WG_IP}:${match.apiPort}/config`, {
         method: "POST",
         headers: {
@@ -71,6 +67,7 @@ export async function POST(
           team1: { name: "Team 1", players: team1Players },
           team2: { name: "Team 2", players: team2Players },
         }),
+        signal: AbortSignal.timeout(10000),
       });
     }
 
