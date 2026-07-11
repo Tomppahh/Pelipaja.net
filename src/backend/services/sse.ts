@@ -23,6 +23,14 @@ export function broadcastMatchUpdate(matchId: string, data: object) {
   subs.forEach((send) => send(payload));
 }
 
+export function broadcastMatchStats(matchId: string, data: object) {
+  const subs = subscribers.get(channelKey("match", matchId));
+  if (!subs || subs.size === 0) return;
+
+  const payload = `data: ${JSON.stringify({ __type: "matchStats", ...data })}\n\n`;
+  subs.forEach((send) => send(payload));
+}
+
 export function registerSubscriber(
   channel: Channel,
   matchId: string,

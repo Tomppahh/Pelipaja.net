@@ -5,7 +5,7 @@ import Match from "@/src/models/Match";
 import MatchResult from "@/src/models/MatchResult";
 import Lobby from "@/src/models/lobby";
 import { destroyServer } from "@/src/backend/services/gameServerService";
-import { broadcastMatchUpdate } from "@/src/backend/services/sse";
+import { broadcastMatchUpdate, broadcastMatchStats } from "@/src/backend/services/sse";
 
 const VALID_STATUSES = ["pending", "configuring", "ready", "live", "finished", "cancelled"];
 
@@ -26,6 +26,31 @@ export async function POST(
   const { id } = await params;
   const body = await req.json();
   const { status, stats } = body;
+
+  // Round-end: the plugin pushes fresh stats (already cached, no extra
+  // game-server load). Re-broadcast them to the match SSE channel so the
+  // detail page updates instantly instead of polling every 30s.
+  if (status === "round_end") {
+    if (stats?.players) {
+      const lobby = await Lobby.findOne({ matchId: id }).lean();
+      const getTeamName = (team: "team1" | "team2"): string => {
+        if (!lobby) return team === "team1" ? "Team 1" : "Team 2";
+        const captain = lobby.players.find((p: { team: string; isCaptain: boolean }) => p.team === team && p.isCaptain);
+        if (captain) return `Team ${captain.displayName}`;
+        return team === "team1" ? "Team 1" : "Team 2";
+      };
+      broadcastMatchStats(id, {
+        status: "live",
+        source: "plugin",
+        data: {
+          ...stats,
+          team1Name: getTeamName("team1"),
+          team2Name: getTeamName("team2"),
+        },
+      });
+    }
+    return NextResponse.json({ ok: true });
+  }
 
   if (!VALID_STATUSES.includes(status)) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });

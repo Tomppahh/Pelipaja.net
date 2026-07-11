@@ -77,12 +77,41 @@ export default function MatchDetailPage() {
     fetchStats();
   }, [fetchStats]);
 
-  // Poll live matches every round-end interval (~2 minutes)
+  // Live matches: subscribe to SSE for instant round-end stat updates
+  // instead of polling /stats every 30s. Finished matches fall
+  // back to the database source via a manual refresh.
   useEffect(() => {
-    if (!match || match.status === "finished" || match.status === "cancelled") return;
-    const interval = setInterval(fetchStats, 30000);
-    return () => clearInterval(interval);
-  }, [match?.status, fetchStats]);
+    const es = new EventSource(`/api/matches/${id}/events`);
+
+    es.onmessage = (e) => {
+      try {
+        const d = JSON.parse(e.data);
+        if (d.heartbeat) return;
+        if (d.__type === "matchStats") {
+          setMatch((prev) =>
+            prev
+              ? { ...prev, status: d.status ?? prev.status, source: d.source ?? prev.source, data: d.data ?? prev.data }
+              : prev
+          );
+        } else if (d.__type === "matchUpdate") {
+          setMatch((prev) => {
+            if (!prev) return prev;
+            const next = { ...prev, status: d.status ?? prev.status };
+            if (d.status === "finished" || d.status === "cancelled") fetchStats();
+            return next;
+          });
+        }
+      } catch {
+        // ignore malformed frame
+      }
+    };
+
+    es.onerror = () => {
+      // EventSource auto-reconnects.
+    };
+
+    return () => es.close();
+  }, [id]);
 
   if (loading) {
     return (
