@@ -11,10 +11,8 @@ interface MatchData {
   status: string;
   connectionIp?: string;
   connectionPort?: number;
-  gameConfig?: {
-    map: string;
-    mode: string;
-  };
+  map?: string;
+  mode?: string;
   isOwner?: boolean;
   isAdmin?: boolean;
   canCancel?: boolean;
@@ -26,31 +24,46 @@ export default function MatchPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const fetchMatch = async () => {
+    const es = new EventSource(`/api/matches/${id}/events`);
+
+    es.onmessage = (e) => {
       try {
-        const res = await fetch(`/api/matches/${id}`);
-        const data = await res.json();
-        if (!res.ok) {
-          setError(data.error ?? "Match not found");
+        const d = JSON.parse(e.data);
+        if (d.error) {
+          setError(d.error);
           return;
         }
-        setMatch(data);
-        return data.status;
+        if (d.heartbeat) return;
+
+        if (d.__type === "matchUpdate") {
+          setMatch((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  status: d.status,
+                  connectionIp: d.connectionIp ?? prev.connectionIp,
+                  connectionPort: d.connectionPort ?? prev.connectionPort,
+                  map: d.map ?? prev.map,
+                }
+              : prev
+          );
+          if (d.status === "finished" || d.status === "cancelled") es.close();
+          return;
+        }
+
+        // Initial full view
+        setMatch(d);
+        if (d.status === "finished" || d.status === "cancelled") es.close();
       } catch {
-        // network error — next poll will retry
+        // ignore malformed frame
       }
     };
 
-    fetchMatch();
+    es.onerror = () => {
+      // EventSource auto-reconnects; nothing to do here.
+    };
 
-    const interval = setInterval(async () => {
-      const status = await fetchMatch();
-      if (status === "live" || status === "cancelled" || status === "finished") {
-        clearInterval(interval);
-      }
-    }, 3000);
-
-    return () => clearInterval(interval);
+    return () => es.close();
   }, [id]);
 
   if (!match) {
@@ -96,7 +109,7 @@ export default function MatchPage() {
           <PageTitle className="text-2xl">Creating Server...</PageTitle>
           <Muted className="mt-2">Please wait while your server is being set up. This usually takes about a minute.</Muted>
           <p className="mt-4 text-sm text-[var(--foreground)]">
-            Map: <span className="font-semibold text-[var(--accent)]">{match.gameConfig?.map}</span>
+            Map: <span className="font-semibold text-[var(--accent)]">{match.map}</span>
           </p>
         </Card>
       </main>
@@ -117,7 +130,7 @@ export default function MatchPage() {
           )}
           <PageTitle className="text-2xl">Server Ready!</PageTitle>
           <p className="mt-3 text-sm text-[var(--foreground)]">
-            Map: <span className="font-semibold text-[var(--accent)]">{match.gameConfig?.map}</span>
+            Map: <span className="font-semibold text-[var(--accent)]">{match.map}</span>
           </p>
           <code className="mt-4 block rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)]">
             {connectString}
