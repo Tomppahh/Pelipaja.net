@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Button } from "@/src/app/components/ui/button";
 import { Card } from "@/src/app/components/ui/card";
+import { Toast } from "@/src/app/components/ui/toast";
 import { Muted, PageTitle } from "@/src/app/components/ui/typography";
 
 interface MatchData {
@@ -52,20 +53,15 @@ export default function MatchPage() {
     return () => clearInterval(interval);
   }, [id]);
 
-  if (error) {
-    return (
-      <main className="mx-auto flex min-h-[calc(100vh-88px)] w-full max-w-2xl items-center justify-center px-4 py-8 sm:px-6">
-        <Card className="w-full border-[var(--danger)]/35 bg-[var(--danger)]/10">
-          <p className="text-sm font-medium text-[var(--danger)]">{error}</p>
-        </Card>
-      </main>
-    );
-  }
-
   if (!match) {
     return (
       <main className="mx-auto flex min-h-[calc(100vh-88px)] w-full max-w-2xl items-center justify-center px-4 py-8 sm:px-6">
         <Card className="w-full">
+          {error && (
+            <div className="mb-4">
+              <Toast message={error} variant="error" onDismiss={() => setError("")} />
+            </div>
+          )}
           <Muted>Loading...</Muted>
         </Card>
       </main>
@@ -76,6 +72,11 @@ export default function MatchPage() {
     return (
       <main className="mx-auto flex min-h-[calc(100vh-88px)] w-full max-w-2xl items-center justify-center px-4 py-8 sm:px-6">
         <Card className="w-full">
+          {error && (
+            <div className="mb-4">
+              <Toast message={error} variant="error" onDismiss={() => setError("")} />
+            </div>
+          )}
           <PageTitle className="text-2xl">Match Cancelled</PageTitle>
           <Muted className="mt-2">This match was cancelled before the server became playable.</Muted>
         </Card>
@@ -87,6 +88,11 @@ export default function MatchPage() {
     return (
       <main className="mx-auto flex min-h-[calc(100vh-88px)] w-full max-w-2xl items-center justify-center px-4 py-8 sm:px-6">
         <Card className="w-full">
+          {error && (
+            <div className="mb-4">
+              <Toast message={error} variant="error" onDismiss={() => setError("")} />
+            </div>
+          )}
           <PageTitle className="text-2xl">Creating Server...</PageTitle>
           <Muted className="mt-2">Please wait while your server is being set up. This usually takes about a minute.</Muted>
           <p className="mt-4 text-sm text-[var(--foreground)]">
@@ -104,6 +110,11 @@ export default function MatchPage() {
     return (
       <main className="mx-auto flex min-h-[calc(100vh-88px)] w-full max-w-2xl items-center justify-center px-4 py-8 sm:px-6">
         <Card className="w-full">
+          {error && (
+            <div className="mb-4">
+              <Toast message={error} variant="error" onDismiss={() => setError("")} />
+            </div>
+          )}
           <PageTitle className="text-2xl">Server Ready!</PageTitle>
           <p className="mt-3 text-sm text-[var(--foreground)]">
             Map: <span className="font-semibold text-[var(--accent)]">{match.gameConfig?.map}</span>
@@ -128,10 +139,10 @@ export default function MatchPage() {
                     if (res.ok) {
                       setMatch(prev => prev ? { ...prev, status: "cancelled" } : prev);
                     } else {
-                      alert("Failed to cancel");
+                      setError("Failed to cancel match");
                     }
                   } catch {
-                    alert("Failed to cancel");
+                    setError("Failed to cancel match");
                   }
                 }}
               >

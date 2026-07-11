@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/src/app/components/ui/button";
 import { Card } from "@/src/app/components/ui/card";
+import { Toast } from "@/src/app/components/ui/toast";
 import { PageTitle, SectionTitle, Muted } from "@/src/app/components/ui/typography";
+import { CS2_MAPS } from "@/src/backend/games/cs2/config/maps";
 
 interface Match {
   _id: string;
@@ -19,6 +21,10 @@ interface Match {
 export default function AdminPage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [selectedMap, setSelectedMap] = useState(CS2_MAPS[0]);
+  const [teamSize, setTeamSize] = useState(5);
+  const [toast, setToast] = useState<{ message: string; variant: "error" | "success" } | null>(null);
 
   function getStatusClasses(status: string) {
     const normalized = status.toLowerCase();
@@ -57,6 +63,27 @@ export default function AdminPage() {
     fetchMatches();
   }
 
+  async function createServer() {
+    setCreating(true);
+    try {
+      const res = await fetch("/api/admin/servers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ map: selectedMap, teamSize }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setToast({ message: `Server created! Connect: ${data.connectionIp}:${data.connectionPort}`, variant: "success" });
+        fetchMatches();
+      } else {
+        setToast({ message: data.error ?? "Failed to create server", variant: "error" });
+      }
+    } catch {
+      setToast({ message: "Failed to create server", variant: "error" });
+    }
+    setCreating(false);
+  }
+
   useEffect(() => {
     fetchMatches();
   }, []);
@@ -82,6 +109,47 @@ export default function AdminPage() {
           <Button onClick={fetchMatches}>
             Refresh
           </Button>
+        </div>
+
+        {toast && (
+          <div className="mb-4">
+            <Toast message={toast.message} variant={toast.variant} onDismiss={() => setToast(null)} />
+          </div>
+        )}
+
+        {/* Create Server */}
+        <div className="mb-6 rounded-xl border border-[var(--border)] bg-[var(--surface)]/70 p-4 shadow-md sm:p-5">
+          <SectionTitle className="mb-3 text-lg">Create Test Server</SectionTitle>
+          <p className="mb-4 text-sm text-[var(--muted)]">
+            Start a CS2 server without a lobby. Useful for testing plugin updates.
+          </p>
+          <div className="flex flex-wrap items-end gap-4">
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[var(--muted)]">Map</label>
+              <select
+                value={selectedMap}
+                onChange={e => setSelectedMap(e.target.value)}
+                className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              >
+                {CS2_MAPS.map(m => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[var(--muted)]">Team Size</label>
+              <input
+                type="number"
+                min={1} max={10}
+                value={teamSize}
+                onChange={e => setTeamSize(Number(e.target.value))}
+                className="w-20 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              />
+            </div>
+            <Button onClick={createServer} disabled={creating}>
+              {creating ? "Creating..." : "Create Server"}
+            </Button>
+          </div>
         </div>
 
         <SectionTitle className="mb-4 text-xl">Active Servers</SectionTitle>
