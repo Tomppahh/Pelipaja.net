@@ -29,6 +29,16 @@ function isPrivileged(lobby: ILobby, user: SessionUser) {
 async function join({ lobby, user, body, matchId }: ActionContext): Promise<NextResponse> {
   const alreadyIn = lobby.players.some(p => p.steamId === user.steamId);
   if (!alreadyIn) {
+    // Prevent joining if already in another active lobby
+    const otherLobby = await Lobby.findOne({
+      _id: { $ne: lobby._id },
+      "players.steamId": user.steamId,
+      phase: { $nin: ["starting"] },
+    }).select("matchId");
+    if (otherLobby) {
+      return error("You are already in another lobby. Leave it first.", 409);
+    }
+
     // Check password if lobby is password-protected
     if (lobby.settings.password) {
       const provided = typeof body?.password === "string" ? body.password : "";
@@ -138,6 +148,11 @@ async function leaveLobby({ lobby, user, matchId }: ActionContext): Promise<Next
     await Lobby.deleteOne({ matchId });
     broadcastLobbyUpdate(matchId, { closed: true });
     return NextResponse.json({ success: true, closed: true });
+  }
+
+  // If the leaving player was the leader and players remain, block leaving
+  if (wasLeader && lobby.players.length > 0) {
+    return error("You are the lobby leader. Transfer ownership before leaving.", 400);
   }
 
   return NextResponse.json({ success: true });
