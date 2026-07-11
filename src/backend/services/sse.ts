@@ -9,6 +9,14 @@ export function broadcastLobbyUpdate(matchId: string, data: object) {
   subs.forEach(send => send(payload));
 }
 
+export function broadcastMatchUpdate(matchId: string, data: object) {
+  const subs = subscribers.get(matchId);
+  if (!subs || subs.size === 0) return;
+
+  const payload = `data: ${JSON.stringify({ __type: "matchUpdate", ...data })}\n\n`;
+  subs.forEach(send => send(payload));
+}
+
 export function registerSubscriber(matchId: string, send: (data: string) => void) {
   if (!subscribers.has(matchId)) subscribers.set(matchId, new Set());
   subscribers.get(matchId)!.add(send);

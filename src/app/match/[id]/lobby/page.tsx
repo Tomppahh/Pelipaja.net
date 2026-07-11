@@ -177,7 +177,7 @@ export default function LobbyPage() {
       .catch(() => {});
   }, [id]);
 
-  // SSE — live lobby state
+  // SSE — live lobby + match state
   useEffect(() => {
     const es = new EventSource(`/api/matches/${id}/lobby/events`);
 
@@ -186,6 +186,10 @@ export default function LobbyPage() {
         const data = JSON.parse(e.data);
         if (data.heartbeat) return;
         if (data.closed)    { setError("This lobby has been closed."); es.close(); return; }
+        if (data.__type === "matchUpdate") {
+          setMatch(prev => prev ? { ...prev, ...data } : data);
+          return;
+        }
         setLobby(data);
       } catch { /* malformed frame */ }
     };
@@ -195,19 +199,12 @@ export default function LobbyPage() {
     return () => es.close();
   }, [id]);
 
-  // Poll match state every 3 s
+  // Fetch match state once on mount (SSE handles subsequent updates)
   useEffect(() => {
-    let active = true;
-
-    const fetchMatch = () =>
-      fetch(`/api/matches/${id}`)
-        .then(r => r.ok ? r.json() : null)
-        .then(data => { if (active && data) setMatch(data); })
-        .catch(() => {});
-
-    fetchMatch();
-    const interval = setInterval(fetchMatch, 3000);
-    return () => { active = false; clearInterval(interval); };
+    fetch(`/api/matches/${id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setMatch(data); })
+      .catch(() => {});
   }, [id]);
 
   // Auto-advance captain pick when all players are assigned
