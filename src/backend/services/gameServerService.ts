@@ -158,6 +158,9 @@ export async function createServer(gameType: string, map: string, matchId: strin
     throw new Error('Maximum number of servers reached');
   }
 
+  // Clean all workshop maps before starting a new server
+  await cleanupAllWorkshopMaps();
+
   await new Promise<void>((resolve, reject) => {
     docker.pull('ghcr.io/tomppahh/pelipaja-cs2:latest', (err: any, stream: any) => {
       if (err) return reject(err);
@@ -294,6 +297,24 @@ async function cleanupWorkshopMaps(workshopIds: string[]) {
     await cleanup.start();
     await cleanup.wait();
     log(`Cleaned up workshop maps: ${workshopIds.join(", ")}`);
+  } catch (err) {
+    console.error("[Pelipaja] Workshop cleanup failed:", err);
+  }
+}
+
+async function cleanupAllWorkshopMaps() {
+  try {
+    const cleanup = await docker.createContainer({
+      Image: "alpine:latest",
+      Cmd: ["sh", "-c", "rm -rf /data/steamapps/workshop/content/730/*"],
+      HostConfig: {
+        Binds: ["cs2_gamefiles:/data"],
+        AutoRemove: true,
+      },
+    });
+    await cleanup.start();
+    await cleanup.wait();
+    log("Cleaned up all orphaned workshop maps");
   } catch (err) {
     console.error("[Pelipaja] Workshop cleanup failed:", err);
   }

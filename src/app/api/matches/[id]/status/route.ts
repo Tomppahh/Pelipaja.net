@@ -109,30 +109,25 @@ export async function POST(
     if (status === "finished" && stats?.players) {
       const lobby = await Lobby.findOne({ matchId: id });
       const gc = (match.gameConfig ?? {}) as Record<string, unknown>;
-      const isBotTest = gc.botTestMode === true;
       const team1Players = (lobby?.players ?? []).filter(p => p.team === "team1").map(p => p.steamId);
       const team2Players = (lobby?.players ?? []).filter(p => p.team === "team2").map(p => p.steamId);
 
-      const team1StatsList = isBotTest
-        ? stats.players.filter((p: { team: string }) => p.team === "CT")
-        : stats.players.filter((p: { steamId: string }) => team1Players.includes(p.steamId));
-      const team2StatsList = isBotTest
-        ? stats.players.filter((p: { team: string }) => p.team === "T")
-        : stats.players.filter((p: { steamId: string }) => team2Players.includes(p.steamId));
+      const team1StatsList = stats.players.filter((p: { steamId: string }) => team1Players.includes(p.steamId));
+      const team2StatsList = stats.players.filter((p: { steamId: string }) => team2Players.includes(p.steamId));
 
       await MatchResult.create({
         matchId: id,
         map: stats.map ?? gc.map as string,
-        isPublic: isBotTest || (lobby?.settings.isPublic ?? false),
+        isPublic: lobby?.settings.isPublic ?? false,
         score: stats.score ?? { ct: 0, t: 0 },
         duration: Math.floor((Date.now() - match.createdAt.getTime()) / 1000),
         team1: {
-          name: isBotTest ? "CT Bots" : "Team 1",
+          name: "Team 1",
           score: stats.score?.ct ?? 0,
           players: team1StatsList,
         },
         team2: {
-          name: isBotTest ? "T Bots" : "Team 2",
+          name: "Team 2",
           score: stats.score?.t ?? 0,
           players: team2StatsList,
         },
