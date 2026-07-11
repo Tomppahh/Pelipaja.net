@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/src/backend/lib/db";
 import Match from "@/src/models/Match";
+import MatchResult from "@/src/models/MatchResult";
 import Lobby from "@/src/models/lobby";
 import { destroyServer } from "@/src/backend/services/gameServerService";
 
@@ -22,7 +23,8 @@ export async function POST(
 
   await connectDB();
   const { id } = await params;
-  const { status } = await req.json();
+  const body = await req.json();
+  const { status, stats } = body;
 
   if (!VALID_STATUSES.includes(status)) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
@@ -75,6 +77,33 @@ export async function POST(
       if (match.gameId) {
         await destroyServer(match.gameId);
       }
+    }
+
+    // Save match result with stats when match finishes
+    if (status === "finished" && stats?.players) {
+      const lobby = await Lobby.findOne({ matchId: id });
+      const team1Players = (lobby?.players ?? []).filter(p => p.team === "team1").map(p => p.steamId);
+      const team2Players = (lobby?.players ?? []).filter(p => p.team === "team2").map(p => p.steamId);
+
+      const team1StatsList = stats.players.filter((p: { steamId: string }) => team1Players.includes(p.steamId));
+      const team2StatsList = stats.players.filter((p: { steamId: string }) => team2Players.includes(p.steamId));
+
+      await MatchResult.create({
+        matchId: id,
+        map: stats.map ?? (match.gameConfig as Record<string, unknown>).map as string,
+        score: stats.score ?? { ct: 0, t: 0 },
+        duration: Math.floor((Date.now() - match.createdAt.getTime()) / 1000),
+        team1: {
+          name: "Team 1",
+          score: stats.score?.ct ?? 0,
+          players: team1StatsList,
+        },
+        team2: {
+          name: "Team 2",
+          score: stats.score?.t ?? 0,
+          players: team2StatsList,
+        },
+      });
     }
   } catch (err) {
     console.error(`Failed to handle status ${status} for match ${id}:`, err);

@@ -19,6 +19,7 @@ export default async function Header() {
             <nav className='flex items-center self-stretch '>
 				<NavLink href='/' plain><h1 className='font-display text-5xl font-bold'>Pelipaja.net</h1></NavLink>
 				<NavLink href='/about'>About</NavLink>
+				<NavLink href='/matches'>Matches</NavLink>
                 {/* Add more routes here */}
             </nav>
 

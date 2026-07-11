@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Button } from "@/src/app/components/ui/button";
 import { Card } from "@/src/app/components/ui/card";
 import { Toast } from "@/src/app/components/ui/toast";
 import { PageTitle, SectionTitle, Muted } from "@/src/app/components/ui/typography";
 import { CS2_MAPS } from "@/src/backend/games/cs2/config/maps";
+import type { PlayerMatchStats } from "@/src/lib/types/match";
 
 interface Match {
   _id: string;
@@ -15,7 +16,15 @@ interface Match {
   gameConfig: { map: string; mode?: string; ownerName?: string };
   connectionIp: string;
   connectionPort: number;
+  apiPort?: number;
   createdAt: string;
+}
+
+interface LiveStats {
+  map: string;
+  score: { ct: number; t: number };
+  round: number;
+  players: PlayerMatchStats[];
 }
 
 export default function AdminPage() {
@@ -25,6 +34,7 @@ export default function AdminPage() {
   const [selectedMap, setSelectedMap] = useState(CS2_MAPS[0]);
   const [teamSize, setTeamSize] = useState(5);
   const [toast, setToast] = useState<{ message: string; variant: "error" | "success" } | null>(null);
+  const [liveStats, setLiveStats] = useState<Record<string, LiveStats>>({});
 
   function getStatusClasses(status: string) {
     const normalized = status.toLowerCase();
@@ -57,6 +67,48 @@ export default function AdminPage() {
     setMatches(data);
     setLoading(false);
   }
+
+  async function fetchLiveStats(matchId: string) {
+    try {
+      const res = await fetch(`/api/matches/${matchId}/stats`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.data?.players) {
+          setLiveStats((prev) => ({
+            ...prev,
+            [matchId]: {
+              map: data.data.map,
+              score: data.data.score,
+              round: data.data.round ?? 0,
+              players: data.data.players,
+            },
+          }));
+        }
+      }
+    } catch {
+      // silent
+    }
+  }
+
+  async function fetchAllLiveStats() {
+    const liveMatches = matches.filter(
+      (m) => m.status === "live" || m.status === "ready"
+    );
+    await Promise.all(liveMatches.map((m) => fetchLiveStats(m._id)));
+  }
+
+  // Poll live stats every 30 seconds
+  useEffect(() => {
+    if (matches.length === 0) return;
+    const liveMatches = matches.filter(
+      (m) => m.status === "live" || m.status === "ready"
+    );
+    if (liveMatches.length === 0) return;
+
+    fetchAllLiveStats();
+    const interval = setInterval(fetchAllLiveStats, 30000);
+    return () => clearInterval(interval);
+  }, [matches]);
 
   async function stopServer(matchId: string) {
     await fetch(`/api/admin/servers/${matchId}`, { method: "DELETE" });
@@ -97,6 +149,8 @@ export default function AdminPage() {
       </main>
     );
   }
+
+  const liveMatches = matches.filter((m) => m.status === "live" || m.status === "ready");
 
   return (
     <main className="min-h-screen bg-[var(--background)] p-4 sm:p-6">
@@ -152,6 +206,79 @@ export default function AdminPage() {
           </div>
         </div>
 
+        {/* Live Match Monitoring */}
+        {liveMatches.length > 0 && (
+          <div className="mb-6">
+            <SectionTitle className="mb-4 text-xl">Live Matches</SectionTitle>
+            <div className="space-y-4">
+              {liveMatches.map((match) => {
+                const stats = liveStats[match._id];
+                return (
+                  <div
+                    key={match._id}
+                    className="rounded-xl border border-[var(--success)]/30 bg-[var(--success)]/5 p-4 shadow-md"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-lg font-semibold text-[var(--foreground)]">
+                          {match.gameConfig.map}
+                        </p>
+                        {stats && (
+                          <p className="mt-1 text-sm text-[var(--muted)]">
+                            Score: <span className="font-bold text-[var(--accent)]">{stats.score.ct} - {stats.score.t}</span>
+                            {stats.round > 0 && <span className="ml-2">Round {stats.round}</span>}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center rounded-full border border-[var(--success)]/40 bg-[var(--success)]/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[var(--success)]">
+                          Live
+                        </span>
+                        <Link
+                          href={`/matches/${match._id}`}
+                          className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-semibold text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+                        >
+                          View
+                        </Link>
+                      </div>
+                    </div>
+
+                    {stats && stats.players.length > 0 && (
+                      <div className="mt-3 overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b border-[var(--border)] text-left uppercase tracking-wider text-[var(--muted)]">
+                              <th className="pb-1 pr-2">Player</th>
+                              <th className="pb-1 px-2 text-center">K</th>
+                              <th className="pb-1 px-2 text-center">D</th>
+                              <th className="pb-1 px-2 text-center">A</th>
+                              <th className="pb-1 px-2 text-center">Score</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {[...stats.players]
+                              .sort((a, b) => b.score - a.score)
+                              .map((p) => (
+                                <tr key={p.steamId} className="border-b border-[var(--border)]/30">
+                                  <td className="py-1 pr-2 text-[var(--foreground)]">{p.name}</td>
+                                  <td className="py-1 px-2 text-center tabular-nums">{p.kills}</td>
+                                  <td className="py-1 px-2 text-center tabular-nums">{p.deaths}</td>
+                                  <td className="py-1 px-2 text-center tabular-nums">{p.assists}</td>
+                                  <td className="py-1 px-2 text-center tabular-nums font-semibold text-[var(--accent)]">{p.score}</td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Active Servers */}
         <SectionTitle className="mb-4 text-xl">Active Servers</SectionTitle>
 
         {matches.length === 0 && (
