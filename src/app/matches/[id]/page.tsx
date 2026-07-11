@@ -122,9 +122,12 @@ export default function MatchDetailPage() {
     team2Players = sortPlayers(data.team2.players);
     team1Name = data.team1.name;
     team2Name = data.team2.name;
-    // For database results, team1 is always the first team, sides swap at halftime
-    team1Side = halftime ? "T" : "CT";
-    team2Side = halftime ? "CT" : "T";
+    // Derive each team's side from its players' final in-game side so a
+    // side swap doesn't mislabel/mis-score the teams. Fall back to halftime.
+    const t1 = data.team1.players?.[0]?.team;
+    const t2 = data.team2.players?.[0]?.team;
+    team1Side = t1 === "T" ? "T" : t1 === "CT" ? "CT" : (halftime ? "T" : "CT");
+    team2Side = t2 === "T" ? "T" : t2 === "CT" ? "CT" : (halftime ? "CT" : "T");
   } else if (data.players) {
     // From plugin — split by team
     const ct = data.players.filter((p) => p.team === "CT");
@@ -181,14 +184,14 @@ export default function MatchDetailPage() {
           <TeamPanel
             name={team1Name}
             side={team1Side}
-            score={team1Side === "CT" ? (data.score?.ct ?? 0) : (data.score?.t ?? 0)}
+            score={data.team1?.score ?? (team1Side === "CT" ? (data.score?.ct ?? 0) : (data.score?.t ?? 0))}
             players={team1Players}
             expanded={expanded}
           />
           <TeamPanel
             name={team2Name}
             side={team2Side}
-            score={team2Side === "CT" ? (data.score?.ct ?? 0) : (data.score?.t ?? 0)}
+            score={data.team2?.score ?? (team2Side === "CT" ? (data.score?.ct ?? 0) : (data.score?.t ?? 0))}
             players={team2Players}
             expanded={expanded}
           />

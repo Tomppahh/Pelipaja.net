@@ -197,23 +197,23 @@ export default function MatchesPage() {
                   {/* Score */}
                   <div className="flex shrink-0 items-baseline gap-1.5 tabular-nums">
                     <span className={`text-xl font-bold ${
-                      (m.score?.ct ?? 0) > (m.score?.t ?? 0)
+                      (m.team1?.score ?? 0) > (m.team2?.score ?? 0)
                         ? "text-[var(--accent)]"
-                        : (m.score?.ct ?? 0) < (m.score?.t ?? 0)
+                        : (m.team1?.score ?? 0) < (m.team2?.score ?? 0)
                           ? "text-[var(--foreground)]/50"
                           : "text-[var(--muted)]"
                     }`}>
-                      {m.score?.ct ?? 0}
+                      {m.team1?.score ?? 0}
                     </span>
                     <span className="text-sm text-[var(--muted)]">:</span>
                     <span className={`text-xl font-bold ${
-                      (m.score?.t ?? 0) > (m.score?.ct ?? 0)
+                      (m.team2?.score ?? 0) > (m.team1?.score ?? 0)
                         ? "text-[var(--accent)]"
-                        : (m.score?.t ?? 0) < (m.score?.ct ?? 0)
+                        : (m.team2?.score ?? 0) < (m.team1?.score ?? 0)
                           ? "text-[var(--foreground)]/50"
                           : "text-[var(--muted)]"
                     }`}>
-                      {m.score?.t ?? 0}
+                      {m.team2?.score ?? 0}
                     </span>
                   </div>
 

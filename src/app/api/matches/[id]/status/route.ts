@@ -130,6 +130,19 @@ export async function POST(
         team2StatsList.push(...t);
       }
 
+      // Attribute the final ct/t scores to the correct abstract team. team1 is
+      // not necessarily CT in the first half — after a side swap the panels would
+      // otherwise show the losing team as the winner. Use each team's actual
+      // in-game side (from a player's `team` in the final stats) to pick the score.
+      const team1Side: "CT" | "T" =
+        team1StatsList[0]?.team === "T" ? "T" : "CT";
+      const team2Side: "CT" | "T" =
+        team2StatsList[0]?.team === "T" ? "T" : "CT";
+      const team1Score =
+        team1Side === "CT" ? (stats.score?.ct ?? 0) : (stats.score?.t ?? 0);
+      const team2Score =
+        team2Side === "CT" ? (stats.score?.ct ?? 0) : (stats.score?.t ?? 0);
+
       function getTeamName(team: "team1" | "team2"): string {
         if (!lobby) return team === "team1" ? "Team 1" : "Team 2";
         const captain = lobby.players.find(p => p.team === team && p.isCaptain);
@@ -145,12 +158,12 @@ export async function POST(
         duration: Math.floor((Date.now() - match.createdAt.getTime()) / 1000),
         team1: {
           name: getTeamName("team1"),
-          score: stats.score?.ct ?? 0,
+          score: team1Score,
           players: team1StatsList,
         },
         team2: {
           name: getTeamName("team2"),
-          score: stats.score?.t ?? 0,
+          score: team2Score,
           players: team2StatsList,
         },
       });
