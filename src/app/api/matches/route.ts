@@ -148,14 +148,22 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get("limit") ?? "20", 10)));
   const skip = (page - 1) * limit;
 
+  const user = await getSession();
+
+  // Build filter: non-admin users only see public match history
+  const filter: Record<string, unknown> = {};
+  if (!user || user.role !== "admin") {
+    filter.isPublic = true;
+  }
+
   const [results, total] = await Promise.all([
-    MatchResult.find()
+    MatchResult.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .select("-team1.players -team2.players")
       .lean(),
-    MatchResult.countDocuments(),
+    MatchResult.countDocuments(filter),
   ]);
 
   return NextResponse.json({

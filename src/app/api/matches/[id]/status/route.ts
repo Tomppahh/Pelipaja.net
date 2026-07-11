@@ -103,6 +103,7 @@ export async function POST(
       await MatchResult.create({
         matchId: id,
         map: stats.map ?? (match.gameConfig as Record<string, unknown>).map as string,
+        isPublic: lobby?.settings.isPublic ?? false,
         score: stats.score ?? { ct: 0, t: 0 },
         duration: Math.floor((Date.now() - match.createdAt.getTime()) / 1000),
         team1: {
