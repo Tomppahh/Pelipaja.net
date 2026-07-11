@@ -5,6 +5,7 @@ import Match from "@/src/models/Match";
 import MatchResult from "@/src/models/MatchResult";
 import Lobby from "@/src/models/lobby";
 import { destroyServer } from "@/src/backend/services/gameServerService";
+import { broadcastMatchUpdate } from "@/src/backend/services/sse";
 
 const VALID_STATUSES = ["pending", "configuring", "ready", "live", "finished", "cancelled"];
 
@@ -34,6 +35,15 @@ export async function POST(
   if (!match) {
     return NextResponse.json({ error: "Match not found" }, { status: 404 });
   }
+
+  // Push status change to lobby SSE subscribers
+  const lobby = await Lobby.findOne({ matchId: id });
+  broadcastMatchUpdate(id, {
+    status,
+    connectionIp: match.connectionIp,
+    connectionPort: match.connectionPort,
+    map: (match.gameConfig as Record<string, unknown>)?.map,
+  });
 
   try {
     if (status === "configuring") {
