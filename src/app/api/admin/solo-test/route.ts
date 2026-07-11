@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     const secret = process.env.MATCHUP_API_SECRET ?? "";
     let configSent = false;
 
-    for (let attempt = 0; attempt < 30; attempt++) {
+    for (let attempt = 0; attempt < 90; attempt++) {
       await new Promise(r => setTimeout(r, 2000));
       try {
         const configRes = await fetch(`${pluginUrl}/config`, {
