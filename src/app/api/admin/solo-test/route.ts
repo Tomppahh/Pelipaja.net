@@ -45,12 +45,24 @@ export async function POST(req: NextRequest) {
     match.connectionPort = server.connectionPort;
     await match.save();
 
+    // Store bot test config so the status route can send it when the plugin boots
+    match.gameConfig = {
+      ...(match.gameConfig as Record<string, unknown>),
+      ownerSteamID: user.steamId,
+      map,
+      mode: "pelipaja",
+      botTestMode: true,
+      botsPerTeam: teamSize,
+      teamSize,
+    } as any;
+    await match.save();
+
     // Poll for the plugin HTTP server to come up, then send bot test config
     const pluginUrl = `http://${process.env.HOME_PC_WG_IP}:${server.apiPort}`;
     const secret = process.env.MATCHUP_API_SECRET ?? "";
     let configSent = false;
 
-    for (let attempt = 0; attempt < 30; attempt++) {
+    for (let attempt = 0; attempt < 90; attempt++) {
       await new Promise(r => setTimeout(r, 2000));
       try {
         const configRes = await fetch(`${pluginUrl}/config`, {
@@ -80,16 +92,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (!configSent) {
-      match.status = "cancelled";
-      await match.save();
-      return NextResponse.json({ error: "Plugin did not respond in time" }, { status: 500 });
-    }
-
     return NextResponse.json({
       matchId: match._id.toString(),
       connectionIp: server.connectionIp,
       connectionPort: server.connectionPort,
+      configSent,
     }, { status: 201 });
   } catch (err) {
     match.status = "cancelled";
