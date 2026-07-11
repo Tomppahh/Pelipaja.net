@@ -109,11 +109,33 @@ export async function POST(
     if (status === "finished" && stats?.players) {
       const lobby = await Lobby.findOne({ matchId: id });
       const gc = (match.gameConfig ?? {}) as Record<string, unknown>;
-      const team1Players = (lobby?.players ?? []).filter(p => p.team === "team1").map(p => p.steamId);
-      const team2Players = (lobby?.players ?? []).filter(p => p.team === "team2").map(p => p.steamId);
 
-      const team1StatsList = stats.players.filter((p: { steamId: string }) => team1Players.includes(p.steamId));
-      const team2StatsList = stats.players.filter((p: { steamId: string }) => team2Players.includes(p.steamId));
+      // The plugin sends steamId as a number; lobby stores it as a string,
+      // so match by stringified value.
+      const team1SteamIds = new Set(
+        (lobby?.players ?? []).filter(p => p.team === "team1").map(p => String(p.steamId))
+      );
+      const team2SteamIds = new Set(
+        (lobby?.players ?? []).filter(p => p.team === "team2").map(p => String(p.steamId))
+      );
+
+      const team1StatsList = stats.players.filter((p: { steamId: string | number }) => team1SteamIds.has(String(p.steamId)));
+      const team2StatsList = stats.players.filter((p: { steamId: string | number }) => team2SteamIds.has(String(p.steamId)));
+
+      // Fallback: if lobby has no team assignments, split by in-game side
+      if (team1StatsList.length === 0 && team2StatsList.length === 0) {
+        const ct = stats.players.filter((p: { team: string }) => p.team === "CT");
+        const t = stats.players.filter((p: { team: string }) => p.team === "T");
+        team1StatsList.push(...ct);
+        team2StatsList.push(...t);
+      }
+
+      function getTeamName(team: "team1" | "team2"): string {
+        if (!lobby) return team === "team1" ? "Team 1" : "Team 2";
+        const captain = lobby.players.find(p => p.team === team && p.isCaptain);
+        if (captain) return `Team ${captain.displayName}`;
+        return team === "team1" ? "Team 1" : "Team 2";
+      }
 
       await MatchResult.create({
         matchId: id,
@@ -122,12 +144,12 @@ export async function POST(
         score: stats.score ?? { ct: 0, t: 0 },
         duration: Math.floor((Date.now() - match.createdAt.getTime()) / 1000),
         team1: {
-          name: "Team 1",
+          name: getTeamName("team1"),
           score: stats.score?.ct ?? 0,
           players: team1StatsList,
         },
         team2: {
-          name: "Team 2",
+          name: getTeamName("team2"),
           score: stats.score?.t ?? 0,
           players: team2StatsList,
         },
