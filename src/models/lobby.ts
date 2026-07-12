@@ -4,7 +4,7 @@ import { CS2_MAPS } from "@/src/backend/games/cs2/config/maps";
 // ─── Sub-document types ───────────────────────────────────────────────────────
 
 export type Team = "team1" | "team2";
-export type LobbyPhase = "waiting" | "ready_check" | "captain_pick" | "map_veto" | "starting";
+export type LobbyPhase = "waiting" | "ready_check" | "captain_pick" | "map_veto" | "starting" | "finished";
 export type LobbyMode = "use_current_teams" | "captain_pick" | "captain_map_veto" | "pick_map";
 export type VetoAction = "ban" | "pick";
 
@@ -125,7 +125,7 @@ const LobbySchema = new Schema<ILobby>(
   {
     matchId: { type: Schema.Types.ObjectId, ref: "Match", required: true },
     leaderId: { type: String, required: true },
-    phase: { type: String, enum: ["waiting", "ready_check", "captain_pick", "map_veto", "starting"], default: "waiting" },
+      phase: { type: String, enum: ["waiting", "ready_check", "captain_pick", "map_veto", "starting", "finished"], default: "waiting" },
     players: { type: [PlayerSchema], default: [] },
     settings: {
       teamSize: { type: Number, default: 5 },

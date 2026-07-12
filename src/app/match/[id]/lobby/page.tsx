@@ -8,6 +8,7 @@ import { Card } from "@/src/app/components/ui/card";
 import { Button } from "@/src/app/components/ui/button";
 import { Toast } from "@/src/app/components/ui/toast";
 import { Muted, PageTitle } from "@/src/app/components/ui/typography";
+import Link from "next/link";
 import { CS2_MAPS } from "@/src/backend/games/cs2/config/maps";
 
 function parseWorkshopId(input: string): string | null {
@@ -26,7 +27,7 @@ const LOBBY_MODES = CS2_LOBBY_MODES;
 type LobbyMode = LobbyModeId;
 
 type Team  = "team1" | "team2" | "none";
-type Phase = "waiting" | "ready_check" | "captain_pick" | "map_veto" | "starting";
+type Phase = "waiting" | "ready_check" | "captain_pick" | "map_veto" | "starting" | "finished";
 
 interface MatchData {
   status: string;
@@ -74,6 +75,7 @@ const PHASE_LABEL: Record<Phase, string> = {
   captain_pick: "Captain picking",
   map_veto:     "Map veto",
   starting:     "Starting server…",
+  finished:     "Match finished",
 };
 
 const MODE_LABEL: Record<string, string> = {
@@ -560,6 +562,23 @@ export default function LobbyPage() {
             <a href={`steam://connect/${match.connectionIp}:${match.connectionPort}`}>
               <Button>Connect via Steam</Button>
             </a>
+          </div>
+        </div>
+      )}
+
+      {/* Match finished */}
+      {(match?.status === "finished" || match?.status === "cancelled" || lobby.phase === "finished") && (
+        <div className="mt-4 rounded-lg border border-[var(--muted)]/30 bg-[var(--muted)]/10 px-4 py-3">
+          <PageTitle className="text-xl">
+            {match?.status === "cancelled" ? "Match Cancelled" : "Match Finished"}
+          </PageTitle>
+          <div className="mt-3 flex items-center gap-3">
+            <Link href={`/matches/${id}`}>
+              <Button variant="secondary" size="sm">View Results</Button>
+            </Link>
+            <Link href="/">
+              <Button size="sm">Back to Home</Button>
+            </Link>
           </div>
         </div>
       )}

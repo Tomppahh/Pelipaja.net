@@ -69,13 +69,44 @@ export async function GET(
       }
 
       const stats = await res.json();
+
+      // Group players by lobby team so the frontend knows which
+      // lobby team is on which in-game side (CT/T).
+      const lobbyTeam1Ids = new Set(
+        (lobby?.players ?? []).filter(p => p.team === "team1").map(p => String(p.steamId))
+      );
+      const lobbyTeam2Ids = new Set(
+        (lobby?.players ?? []).filter(p => p.team === "team2").map(p => String(p.steamId))
+      );
+
+      const team1Players = (stats.players ?? []).filter(
+        (p: { steamId: string | number }) => lobbyTeam1Ids.has(String(p.steamId))
+      );
+      const team2Players = (stats.players ?? []).filter(
+        (p: { steamId: string | number }) => lobbyTeam2Ids.has(String(p.steamId))
+      );
+
+      // Derive each team's in-game side from its players' actual team field
+      const team1Side: "CT" | "T" = team1Players[0]?.team === "T" ? "T" : "CT";
+      const team2Side: "CT" | "T" = team1Side === "CT" ? "T" : "CT";
+
       return NextResponse.json({
         status: match.status,
         source: "plugin",
         data: {
-          ...stats,
-          team1Name: getTeamName("team1"),
-          team2Name: getTeamName("team2"),
+          map: stats.map,
+          score: stats.score,
+          round: stats.round,
+          team1: {
+            name: getTeamName("team1"),
+            score: team1Side === "CT" ? (stats.score?.ct ?? 0) : (stats.score?.t ?? 0),
+            players: team1Players,
+          },
+          team2: {
+            name: getTeamName("team2"),
+            score: team2Side === "CT" ? (stats.score?.ct ?? 0) : (stats.score?.t ?? 0),
+            players: team2Players,
+          },
         },
       });
     } catch {

@@ -36,7 +36,15 @@ export async function GET(
       if (lobby) send(`data: ${JSON.stringify(lobby.toObject())}\n\n`);
 
       const match = await Match.findById(id).lean();
-      if (match) send(`data: ${JSON.stringify({ __type: "matchUpdate", ...match })}\n\n`);
+      if (match) {
+        const map =
+          (match.gameConfig as Record<string, unknown> | undefined)?.map ??
+          lobby?.settings.workshopMapName ??
+          lobby?.settings.map ??
+          lobby?.mapVetoState?.remainingMaps?.[0] ??
+          lobby?.settings.mapPool?.[0];
+        send(`data: ${JSON.stringify({ __type: "matchUpdate", ...match, map })}\n\n`);
+      }
 
       const heartbeat = setInterval(() => {
         send(`data: {"heartbeat":true}\n\n`);
