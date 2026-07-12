@@ -65,12 +65,14 @@ export default function MatchesPage() {
     }
   }
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     fetchMatches(page);
     fetchOngoing();
     const interval = setInterval(fetchOngoing, 15000);
     return () => clearInterval(interval);
   }, [page]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   function formatDate(dateStr: string) {
     return new Date(dateStr).toLocaleDateString("fi-FI", {
@@ -81,6 +83,7 @@ export default function MatchesPage() {
     });
   }
 
+  /* eslint-disable react-hooks/purity */
   function timeAgo(dateStr: string) {
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
@@ -90,6 +93,7 @@ export default function MatchesPage() {
     if (hrs < 24) return `${hrs}h ago`;
     return `${Math.floor(hrs / 24)}d ago`;
   }
+  /* eslint-enable react-hooks/purity */
 
   function formatDuration(seconds: number) {
     const m = Math.floor(seconds / 60);

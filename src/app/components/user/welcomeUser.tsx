@@ -11,6 +11,7 @@ export default function WelcomeUser({ user }: Props) {
   return (
    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
     <span className="text-[var(--foreground)]">Hello {user.displayName}</span>;
+    {/* eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text */}
     <img src={user?.avatarUrl} style={{ width: "48px", height: "48px", borderRadius: "50%"}}/>
       <form action="/api/auth/logout" method="POST">
           <button className="ml-[0px] rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-[var(--foreground)]" type="submit">Logout</button>

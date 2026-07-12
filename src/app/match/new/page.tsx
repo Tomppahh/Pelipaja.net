@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getSession } from "@/src/backend/lib/session";
 import { ROLES, hasRole } from "@/src/lib/config/settings";
 import { redirect } from "next/navigation";
@@ -18,12 +19,12 @@ export default async function CreateMatchPage() {
         <p className="mt-2 text-[var(--muted)]">Select a game</p>
 
         <div className="mt-6">
-          <a
+          <Link
             href="/match/new/cs2"
             className="inline-flex rounded-lg bg-[var(--accent)] px-5 py-2.5 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110"
           >
             Counter-Strike 2
-          </a>
+          </Link>
         </div>
       </section>
     </main>

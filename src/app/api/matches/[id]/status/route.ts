@@ -37,7 +37,6 @@ export async function POST(
   }
 
   // Push status change to lobby SSE subscribers
-  const lobby = await Lobby.findOne({ matchId: id });
   broadcastMatchUpdate(id, {
     status,
     connectionIp: match.connectionIp,
@@ -63,7 +62,6 @@ export async function POST(
         .map(p => p.steamId);
 
       const gameConfigMap = (match.gameConfig as Record<string, unknown>).map as string | undefined;
-      const gameConfigMode = (match.gameConfig as Record<string, unknown>).mode as string | undefined;
 
       const map =
         lobby?.mapVetoState?.remainingMaps[0] ??

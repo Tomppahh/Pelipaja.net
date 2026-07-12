@@ -68,9 +68,9 @@ async function restoreActiveSlots() {
         await match.save();
       }
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
   
-    if (err?.code === 'ECONNREFUSED' || err?.code === 'EHOSTUNREACH') {
+    if (err && typeof err === "object" && ("code" in err && (err.code === 'ECONNREFUSED' || err.code === 'EHOSTUNREACH'))) {
       console.warn('Docker host unreachable on startup — skipping slot restore. Check WireGuard tunnel.');
     } else {
       console.error('Failed to restore active slots:', err);
@@ -147,8 +147,8 @@ export async function createServer(gameType: string, map: string, matchId: strin
   
   try {
     await syncActiveGameIdsFromDocker();
-  } catch (err: any) {
-    if (err?.code === 'ECONNREFUSED' || err?.code === 'EHOSTUNREACH') {
+  } catch (err: unknown) {
+    if (err && typeof err === "object" && "code" in err && (err.code === 'ECONNREFUSED' || err.code === 'EHOSTUNREACH')) {
       throw new Error('Cannot reach Docker host. Check that the WireGuard tunnel to your home PC is up.');
     }
     throw err;
@@ -162,9 +162,9 @@ export async function createServer(gameType: string, map: string, matchId: strin
   await cleanupAllWorkshopMaps();
 
   await new Promise<void>((resolve, reject) => {
-    docker.pull('ghcr.io/tomppahh/pelipaja-cs2:latest', (err: any, stream: any) => {
+    docker.pull('ghcr.io/tomppahh/pelipaja-cs2:latest', (err: Error | null, stream: NodeJS.ReadableStream) => {
       if (err) return reject(err);
-      docker.modem.followProgress(stream, (err: any) => {
+      docker.modem.followProgress(stream, (err: Error | null) => {
         if (err) return reject(err);
         resolve();
       });
@@ -252,8 +252,8 @@ export async function createServer(gameType: string, map: string, matchId: strin
 export async function getServerStatus() {
   try {
     await syncActiveGameIdsFromDocker();
-  } catch (err: any) {
-    if (err?.code === 'ECONNREFUSED' || err?.code === 'EHOSTUNREACH') {
+  } catch (err: unknown) {
+    if (err && typeof err === "object" && "code" in err && (err.code === 'ECONNREFUSED' || err.code === 'EHOSTUNREACH')) {
       return { active: 0, max: getMaxServers(), error: 'Docker host unreachable' };
     }
     throw err;

@@ -4,7 +4,6 @@ import { broadcastLobbyUpdate } from "@/src/backend/services/sse";
 import {
   handleAllReady,
   advanceBotCaptainPicks,
-  startMapVeto,
   proceedAfterCaptainPick,
   finalizeLobbyAndStartServer,
   scheduleBotVeto,

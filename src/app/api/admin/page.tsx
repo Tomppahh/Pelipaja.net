@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/src/app/components/ui/button";
 import { Card } from "@/src/app/components/ui/card";
@@ -98,6 +98,7 @@ export default function AdminPage() {
   }
 
   // Poll live stats every 30 seconds
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     if (matches.length === 0) return;
     const liveMatches = matches.filter(
@@ -109,6 +110,7 @@ export default function AdminPage() {
     const interval = setInterval(fetchAllLiveStats, 30000);
     return () => clearInterval(interval);
   }, [matches]);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   async function stopServer(matchId: string) {
     await fetch(`/api/admin/servers/${matchId}`, { method: "DELETE" });
@@ -136,9 +138,11 @@ export default function AdminPage() {
     setCreating(false);
   }
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     fetchMatches();
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (loading) {
     return (

@@ -59,11 +59,13 @@ export default function LobbiesPage() {
     }
   }, []);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     fetchLobbies();
     const interval = setInterval(fetchLobbies, 10000);
     return () => clearInterval(interval);
   }, [fetchLobbies]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   async function joinLobby(matchId: string, password?: string) {
     setJoining(true);
