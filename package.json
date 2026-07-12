@@ -13,7 +13,7 @@
 	"dependencies": {
 		"bcrypt": "^6.0.0",
 		"clsx": "^2.1.1",
-		"dockerode": "^4.0.9",
+		"dockerode": "^5.0.1",
 		"jose": "^6.2.1",
 		"mongoose": "^9.2.1",
 		"next": "16.2.10",
