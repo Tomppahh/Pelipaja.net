@@ -5,7 +5,7 @@ import Match from "@/src/models/Match";
 import MatchResult from "@/src/models/MatchResult";
 import Lobby from "@/src/models/lobby";
 import { destroyServer } from "@/src/backend/services/gameServerService";
-import { broadcastMatchUpdate } from "@/src/backend/services/sse";
+import { broadcastMatchUpdate, broadcastLobbyUpdate } from "@/src/backend/services/sse";
 
 const VALID_STATUSES = ["pending", "configuring", "ready", "live", "finished", "cancelled"];
 
@@ -36,12 +36,18 @@ export async function POST(
     return NextResponse.json({ error: "Match not found" }, { status: 404 });
   }
 
+  // Resolve the map name so the frontend can display it in banners.
+  const resolveMap = (m: typeof match) => {
+    const fromGameConfig = (m.gameConfig as Record<string, unknown>)?.map as string | undefined;
+    return fromGameConfig ?? "de_mirage";
+  };
+
   // Push status change to lobby SSE subscribers
   broadcastMatchUpdate(id, {
     status,
     connectionIp: match.connectionIp,
     connectionPort: match.connectionPort,
-    map: (match.gameConfig as Record<string, unknown>)?.map,
+    map: resolveMap(match),
   });
 
   try {
@@ -88,6 +94,7 @@ export async function POST(
           map: mapName,
           workshopId,
           teamSize: lobby?.settings.teamSize ?? match.playersPerTeam,
+          knifeRound: (match.gameConfig as Record<string, unknown>)?.knifeRound ?? true,
           team1: { name: "Team 1", players: team1Players },
           team2: { name: "Team 2", players: team2Players },
         }),
@@ -101,6 +108,14 @@ export async function POST(
         const workshopId = lobby?.settings.workshopMapId;
         await destroyServer(match.gameId, workshopId ? [workshopId] : undefined);
       }
+
+      // Transition lobby out of "starting" so the lobby page stops showing
+      // "Creating Server…" after the match ends.
+      await Lobby.findOneAndUpdate(
+        { matchId: id, phase: "starting" },
+        { phase: "finished" }
+      );
+      broadcastLobbyUpdate(id, { phase: "finished" });
     }
 
     // Save match result with stats when match finishes

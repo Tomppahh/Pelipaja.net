@@ -36,7 +36,7 @@ export async function getMatchView(
     const full = typeof (match as unknown as { toObject?: () => object }).toObject === "function"
       ? (match as unknown as { toObject: () => object }).toObject()
       : { ...(match as unknown as object) };
-    return { ...full, isOwner, isAdmin, leaderId: lobby?.leaderId, canCancel };
+    return { ...full, map, isOwner, isAdmin, leaderId: lobby?.leaderId, canCancel };
   }
 
   return {
