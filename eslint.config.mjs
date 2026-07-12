@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local dev artifacts (MongoDB data dir etc.) must not be linted:
+    "data/**",
   ]),
 ]);
 

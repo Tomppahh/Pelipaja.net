@@ -18,8 +18,6 @@ function parseWorkshopId(input: string): string | null {
   return null;
 }
 
-const VALID_MAP_NAME = /^[a-zA-Z0-9_\-]{1,64}$/;
-
 import { CS2_LOBBY_MODES, type LobbyModeId } from "@/src/backend/games/cs2/config/modes";
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -155,6 +153,7 @@ export default function LobbyPage() {
   // ── Effects ──────────────────────────────────────────────────────────────
 
   // Sync settings form when lobby settings change
+  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
   useEffect(() => {
     if (!lobby) return;
     setSettingsMode(lobby.settings.mode as LobbyMode);
@@ -170,6 +169,7 @@ export default function LobbyPage() {
     lobby?.settings.workshopMapId,
     lobby?.settings.workshopMapName,
   ]);
+  /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
   // Scroll chat to bottom on new messages
   useEffect(() => {
@@ -636,14 +636,13 @@ export default function LobbyPage() {
           label={team1Label} team="team1" players={team1}
           teamSize={lobby.settings.teamSize} mySteamId={mySteamId}
           isLeader={isLeader} isAdmin={isAdmin} phase={lobby.phase}
-          myTeam={me?.team ?? "none"} isMyCaptainTurn={!!isMyCaptainTurn}
+          myTeam={me?.team ?? "none"}
           leaderId={lobby.leaderId}
           onJoin={()             => lobbyAction("join_team", { team: "team1" })}
           onLeaveTeam={()        => lobbyAction("leave_team")}
           onSetCaptain={steamId  => lobbyAction("set_captain", { targetSteamId: steamId })}
           onKick={steamId        => lobbyAction("kick_player", { targetSteamId: steamId })}
           onTransferLeader={sid  => lobbyAction("transfer_leader", { targetSteamId: sid })}
-          onCaptainPick={steamId => lobbyAction("captain_pick", { pickedSteamId: steamId })}
         />
 
         {/* Unassigned */}
@@ -675,14 +674,13 @@ export default function LobbyPage() {
           label={team2Label} team="team2" players={team2}
           teamSize={lobby.settings.teamSize} mySteamId={mySteamId}
           isLeader={isLeader} isAdmin={isAdmin} phase={lobby.phase}
-          myTeam={me?.team ?? "none"} isMyCaptainTurn={!!isMyCaptainTurn}
+          myTeam={me?.team ?? "none"}
           leaderId={lobby.leaderId}
           onJoin={()             => lobbyAction("join_team", { team: "team2" })}
           onLeaveTeam={()        => lobbyAction("leave_team")}
           onSetCaptain={steamId  => lobbyAction("set_captain", { targetSteamId: steamId })}
           onKick={steamId        => lobbyAction("kick_player", { targetSteamId: steamId })}
           onTransferLeader={sid  => lobbyAction("transfer_leader", { targetSteamId: sid })}
-          onCaptainPick={steamId => lobbyAction("captain_pick", { pickedSteamId: steamId })}
         />
       </div>
 
@@ -714,8 +712,9 @@ export default function LobbyPage() {
 
                   return (
                     <article key={i} className="flex gap-3 px-1 py-1">
-                      {avatar
-                        ? <img src={avatar} alt="" className="mt-0.5 h-9 w-9 shrink-0 rounded-full object-cover" />
+                       {avatar
+                        ? /* eslint-disable-next-line @next/next/no-img-element */
+                          <img src={avatar} alt="" className="mt-0.5 h-9 w-9 shrink-0 rounded-full object-cover" />
                         : <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--surface-hover)] text-xs font-semibold text-[var(--foreground)]/70">
                             {name[0].toUpperCase()}
                           </div>
@@ -772,8 +771,8 @@ export default function LobbyPage() {
 
 function TeamPanel({
   label, team, players, teamSize, mySteamId, isLeader, isAdmin,
-  phase, myTeam, isMyCaptainTurn, onJoin, onLeaveTeam, onSetCaptain,
-  onKick, onCaptainPick, leaderId, onTransferLeader,
+  phase, myTeam, onJoin, onLeaveTeam, onSetCaptain,
+  onKick, leaderId, onTransferLeader,
 }: {
   label: string;
   team: Team;
@@ -784,12 +783,10 @@ function TeamPanel({
   isAdmin: boolean;
   phase: Phase;
   myTeam: Team;
-  isMyCaptainTurn: boolean;
   onJoin: () => void;
   onLeaveTeam: () => void;
   onSetCaptain: (steamId: string) => void;
   onKick: (steamId: string) => void;
-  onCaptainPick: (steamId: string) => void;
   leaderId: string;
   onTransferLeader: (steamId: string) => void;
 }) {
@@ -804,7 +801,7 @@ function TeamPanel({
       </div>
 
       {(isLeader || isAdmin) && (
-        <p className="text-[11px] text-[var(--muted)]">Use the captain button on a player to reassign that team's captain.</p>
+        <p className="text-[11px] text-[var(--muted)]">Use the captain button on a player to reassign that team&apos;s captain.</p>
       )}
 
       {players.map(p => (
@@ -873,7 +870,8 @@ function PlayerRow({
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           {player.avatarUrl
-            ? <img src={player.avatarUrl} alt="" className="h-8 w-8 shrink-0 rounded-full" />
+            ? /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={player.avatarUrl} alt="" className="h-8 w-8 shrink-0 rounded-full" />
             : <div className="h-8 w-8 shrink-0 rounded-full bg-[var(--surface-hover)]" />
           }
           <p className="min-w-0 truncate font-medium text-[var(--foreground)]">{player.displayName}</p>

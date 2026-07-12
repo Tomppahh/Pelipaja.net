@@ -1,4 +1,3 @@
-import { getSession } from "@/src/backend/lib/session";
 import Match from "@/src/models/Match";
 import Lobby from "@/src/models/lobby";
 

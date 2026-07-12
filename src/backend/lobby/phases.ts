@@ -2,7 +2,6 @@ import Lobby, { ILobby, LobbyPlayer } from "@/src/models/lobby";
 import Match from "@/src/models/Match";
 import { CS2_MAPS } from "@/src/backend/games/cs2/config/maps";
 import { broadcastLobbyUpdate } from "@/src/backend/services/sse";
-import { CreateServerResult } from "./types";
 
 export function validateLobbyCanStart(lobby: ILobby): string | null {
   const team1 = lobby.players.filter(p => p.team === "team1");

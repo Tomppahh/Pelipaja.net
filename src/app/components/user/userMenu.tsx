@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { SessionUser } from "@/src/backend/lib/session";
 
 interface Props {
@@ -17,6 +18,7 @@ export default function UserMenu({ user }: Props) {
         className="flex items-center gap-3 text-[var(--foreground)]"
         type="button"
       >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={user.avatarUrl}
           alt={user.displayName}
@@ -30,9 +32,9 @@ export default function UserMenu({ user }: Props) {
 
       {open && (
         <div className="absolute right-0 min-w-[150px] rounded-md border border-[var(--border)] bg-[var(--surface)] py-1 shadow-md">
-          <a href="/" className="block px-4 py-2 text-[var(--foreground)] hover:bg-[var(--surface-hover)]">
+          <Link href="/" className="block px-4 py-2 text-[var(--foreground)] hover:bg-[var(--surface-hover)]">
             Home
-          </a>
+          </Link>
           {user.role === "admin" && (
             <a href="/api/admin" className="block px-4 py-2 text-[var(--foreground)] hover:bg-[var(--surface-hover)]">
               Admin Panel

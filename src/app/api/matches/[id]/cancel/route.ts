@@ -18,7 +18,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   const lobby = await Lobby.findOne({ matchId: id });
 
-  const ownerSteamId = (match.gameConfig as any)?.ownerSteamID;
+  const ownerSteamId = (match.gameConfig as Record<string, unknown>)?.ownerSteamID;
   const isOwner = user.steamId && ownerSteamId === user.steamId;
   const isAdmin = user.role === 'admin';
   const isLeader = lobby?.leaderId === user.steamId;

@@ -73,16 +73,20 @@ export default function MatchDetailPage() {
     setLoading(false);
   }, [id]);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     fetchStats();
   }, [fetchStats]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Poll live matches every round-end interval (~2 minutes)
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     if (!match || match.status === "finished" || match.status === "cancelled") return;
     const interval = setInterval(fetchStats, 30000);
     return () => clearInterval(interval);
   }, [match?.status, fetchStats]);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   if (loading) {
     return (
