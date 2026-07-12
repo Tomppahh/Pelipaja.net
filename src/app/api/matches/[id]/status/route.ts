@@ -94,6 +94,7 @@ export async function POST(
           map: mapName,
           workshopId,
           teamSize: lobby?.settings.teamSize ?? match.playersPerTeam,
+          knifeRound: (match.gameConfig as Record<string, unknown>)?.knifeRound ?? true,
           team1: { name: "Team 1", players: team1Players },
           team2: { name: "Team 2", players: team2Players },
         }),

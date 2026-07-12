@@ -472,6 +472,9 @@ export default function LobbyPage() {
                       placeholder="de_mymap"
                       className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
                     />
+                    <p className="mt-1.5 text-xs text-[var(--muted)]">
+                      Playing an aim map? Name it with <span className="font-semibold">aim_</span> at the start (e.g. <span className="font-semibold">aim_india</span>). The server will use the map&apos;s own weapons and settings, and knife round is skipped automatically.
+                    </p>
                   </div>
                 </div>
               )}
@@ -537,7 +540,7 @@ export default function LobbyPage() {
       </div>
 
       {/* Server creating */}
-      {!isServerReady && lobby.phase === "starting" && (
+      {!isServerReady && lobby.phase === "starting" && match?.status !== "finished" && match?.status !== "cancelled" && (
         <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
           <PageTitle className="text-xl">Creating Server…</PageTitle>
           <Muted className="mt-1">Please wait while the server starts.</Muted>
