@@ -20,11 +20,10 @@ function parseWorkshopId(input: string): string | null {
   return null;
 }
 
-import { CS2_LOBBY_MODES, type LobbyModeId } from "@/src/backend/games/cs2/config/modes";
+import { type LobbyModeId } from "@/src/backend/games/cs2/config/modes";
 
 // ── Types ─────────────────────────────────────────────────────────────
 
-const LOBBY_MODES = CS2_LOBBY_MODES;
 type LobbyMode = LobbyModeId;
 
 type Team  = "team1" | "team2" | "none";
@@ -380,35 +379,82 @@ export default function LobbyPage() {
           <h2 className="mb-2 font-display text-2xl font-bold tracking-tight text-[var(--foreground)]">Lobby Settings</h2>
           <p className="text-sm text-[var(--muted)]">Pick how teams are formed and how the map is chosen. Modes where you choose a map show a map picker below; veto modes decide the map in-lobby.</p>
 
+          {/* Team size */}
           <div className="mt-6">
-            <p className="mb-2 text-sm text-[var(--muted)]">Lobby mode</p>
-            <div className="flex flex-wrap gap-2">
-              {LOBBY_MODES.map(mode => (
-                <button
-                  key={mode.id}
-                  onClick={() => setSettingsMode(mode.id)}
-                  className={`rounded-lg border px-4 py-2 text-left text-sm font-semibold transition ${
-                    settingsMode === mode.id
-                      ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
-                      : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
-                  }`}
-                >
-                  <div>{mode.label}</div>
-                  <div className="mt-0.5 text-xs font-normal opacity-80">{mode.hint}</div>
-                </button>
-              ))}
+            <p className="mb-2 text-sm text-[var(--muted)]">Players per team</p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSettingsTeamSize(s => Math.max(1, s - 1))}
+                className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-lg font-bold text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+              >
+                −
+              </button>
+              <span className="w-12 text-center text-2xl font-bold text-[var(--foreground)]">{settingsTeamSize}</span>
+              <button
+                onClick={() => setSettingsTeamSize(s => Math.min(10, s + 1))}
+                className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-lg font-bold text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+              >
+                +
+              </button>
             </div>
           </div>
 
-          <div className="mt-6 flex items-center gap-3">
-            <span className="text-sm text-[var(--muted)]">Players per team</span>
-            <input
-              type="number"
-              min={1} max={10}
-              value={settingsTeamSize}
-              onChange={e => setSettingsTeamSize(Number(e.target.value))}
-              className="w-20 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
-            />
+          {/* Lobby toggles */}
+          <div className="mt-6">
+            <p className="mb-2 text-sm text-[var(--muted)]">Options</p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  const next = settingsMode === "captain_pick" || settingsMode === "captain_map_veto"
+                    ? (settingsMode === "captain_map_veto" ? "pick_map" : "use_current_teams")
+                    : (settingsMode === "use_current_teams" ? "captain_pick" : "captain_map_veto");
+                  setSettingsMode(next);
+                }}
+                className={`flex items-center justify-between rounded-xl border-2 px-5 py-4 text-left transition ${
+                  settingsMode === "captain_pick" || settingsMode === "captain_map_veto"
+                    ? "border-[var(--accent)] bg-[var(--accent)]/10"
+                    : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--muted)]"
+                }`}
+              >
+                <div>
+                  <p className="font-semibold text-[var(--foreground)]">Have captains draft players?</p>
+                  <p className="mt-1 text-xs text-[var(--muted)]">Captains take turns picking players for their teams instead of players choosing freely.</p>
+                </div>
+                <div className={`ml-4 h-6 w-11 shrink-0 rounded-full transition ${
+                  settingsMode === "captain_pick" || settingsMode === "captain_map_veto" ? "bg-[var(--accent)]" : "bg-[var(--muted)]/30"
+                }`}>
+                  <div className={`h-5 w-5 translate-y-0.5 rounded-full bg-white shadow transition ${
+                    settingsMode === "captain_pick" || settingsMode === "captain_map_veto" ? "translate-x-5.5" : "translate-x-0.5"
+                  }`} />
+                </div>
+              </button>
+
+              <button
+                onClick={() => {
+                  const next = settingsMode === "pick_map" || settingsMode === "captain_map_veto"
+                    ? (settingsMode === "captain_map_veto" ? "captain_pick" : "use_current_teams")
+                    : (settingsMode === "use_current_teams" ? "pick_map" : "captain_map_veto");
+                  setSettingsMode(next);
+                }}
+                className={`flex items-center justify-between rounded-xl border-2 px-5 py-4 text-left transition ${
+                  settingsMode === "pick_map" || settingsMode === "captain_map_veto"
+                    ? "border-[var(--accent)] bg-[var(--accent)]/10"
+                    : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--muted)]"
+                }`}
+              >
+                <div>
+                  <p className="font-semibold text-[var(--foreground)]">Run a map veto?</p>
+                  <p className="mt-1 text-xs text-[var(--muted)]">Captains alternate banning maps until one remains. If disabled, you pick the map yourself.</p>
+                </div>
+                <div className={`ml-4 h-6 w-11 shrink-0 rounded-full transition ${
+                  settingsMode === "pick_map" || settingsMode === "captain_map_veto" ? "bg-[var(--accent)]" : "bg-[var(--muted)]/30"
+                }`}>
+                  <div className={`h-5 w-5 translate-y-0.5 rounded-full bg-white shadow transition ${
+                    settingsMode === "pick_map" || settingsMode === "captain_map_veto" ? "translate-x-5.5" : "translate-x-0.5"
+                  }`} />
+                </div>
+              </button>
+            </div>
           </div>
 
           {/* Map chooser — shown for fixed-map modes (no map veto) */}
