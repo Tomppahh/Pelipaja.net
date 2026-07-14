@@ -69,7 +69,7 @@ export function CreateMatchButton() {
       onClick={isFull ? (e) => e.preventDefault() : undefined}
       className={`inline-flex rounded-lg px-5 py-2.5 text-sm font-semibold transition ${
         isFull
-          ? 'cursor-not-allowed bg-[var(--muted)] text-[var(--muted-contrast)] opacity-50'
+          ? 'cursor-not-allowed bg-[var(--muted)] text-[var(--foreground)] opacity-50'
           : 'bg-[var(--accent)] text-[var(--accent-contrast)] hover:brightness-110'
       }`}
     >

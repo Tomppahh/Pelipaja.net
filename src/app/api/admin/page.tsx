@@ -62,10 +62,15 @@ export default function AdminPage() {
   }
 
   async function fetchMatches() {
-    const res = await fetch("/api/admin/servers");
-    const data = await res.json();
-    setMatches(data);
-    setLoading(false);
+    try {
+      const res = await fetch("/api/admin/servers");
+      const data = await res.json();
+      setMatches(data);
+    } catch {
+      // silent
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function fetchLiveStats(matchId: string) {

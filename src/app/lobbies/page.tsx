@@ -6,6 +6,7 @@ import { Card } from "@/src/app/components/ui/card";
 import { Button } from "@/src/app/components/ui/button";
 import { Toast } from "@/src/app/components/ui/toast";
 import { PageTitle, Muted } from "@/src/app/components/ui/typography";
+import { MODE_LABEL } from "@/src/lib/config/constants";
 
 interface LobbyEntry {
   matchId: string;
@@ -20,13 +21,6 @@ interface LobbyEntry {
   workshopMapName?: string;
   createdAt: string;
 }
-
-const MODE_LABEL: Record<string, string> = {
-  use_current_teams: "Use Current Teams",
-  pick_map: "Pick Map",
-  captain_pick: "Captain Pick",
-  captain_map_veto: "Captain Pick + Map Veto",
-};
 
 export default function LobbiesPage() {
   const router = useRouter();
@@ -50,7 +44,7 @@ export default function LobbiesPage() {
       const res = await fetch("/api/lobbies");
       if (res.ok) {
         const data = await res.json();
-        setLobbies(data.lobbies);
+        setLobbies(data?.lobbies ?? []);
       }
     } catch {
       // silent

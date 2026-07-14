@@ -11,6 +11,7 @@ import {
 } from "./phases";
 import { ActionContext, SessionUser } from "./types";
 import bcrypt from "bcrypt";
+import { VersionError } from "mongoose";
 
 type ActionHandler = (ctx: ActionContext) => Promise<NextResponse>;
 
@@ -18,6 +19,18 @@ type ActionHandler = (ctx: ActionContext) => Promise<NextResponse>;
 
 function error(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
+}
+
+async function safeSave(doc: ILobby): Promise<NextResponse | null> {
+  try {
+    await doc.save();
+    return null;
+  } catch (err: unknown) {
+    if (err instanceof VersionError) {
+      return error("Conflict: document was modified by another request. Please retry.", 409);
+    }
+    throw err;
+  }
 }
 
 function isPrivileged(lobby: ILobby, user: SessionUser) {
@@ -33,7 +46,6 @@ async function join({ lobby, user, body, matchId }: ActionContext): Promise<Next
     const otherLobby = await Lobby.findOne({
       _id: { $ne: lobby._id },
       "players.steamId": user.steamId,
-      phase: { $nin: ["starting"] },
     }).select("matchId");
     if (otherLobby) {
       return error("You are already in another lobby. Leave it first.", 409);
@@ -67,7 +79,8 @@ async function join({ lobby, user, body, matchId }: ActionContext): Promise<Next
     }
 
     lobby.players.push(newPlayer);
-    await lobby.save();
+    const saveErr = await safeSave(lobby);
+    if (saveErr) return saveErr;
     broadcastLobbyUpdate(matchId, lobby.toObject());
   }
   return NextResponse.json(lobby);
@@ -100,7 +113,8 @@ async function joinTeam({ lobby, user, body, matchId }: ActionContext): Promise<
     player.isCaptain = true;
   }
 
-  await lobby.save();
+  const saveErr = await safeSave(lobby);
+  if (saveErr) return saveErr;
   broadcastLobbyUpdate(matchId, lobby.toObject());
   return NextResponse.json(lobby);
 }
@@ -122,14 +136,22 @@ async function leaveTeam({ lobby, user, matchId }: ActionContext): Promise<NextR
     }
   }
 
-  await lobby.save();
+  const saveErr = await safeSave(lobby);
+  if (saveErr) return saveErr;
   broadcastLobbyUpdate(matchId, lobby.toObject());
   return NextResponse.json(lobby);
 }
 
 async function leaveLobby({ lobby, user, matchId }: ActionContext): Promise<NextResponse> {
   const wasLeader = lobby.leaderId === user.steamId;
-  lobby.players = lobby.players.filter(p => p.steamId !== user.steamId);
+  const remainingAfterLeave = lobby.players.filter(p => p.steamId !== user.steamId);
+
+  // Check BEFORE any mutation: if the leaving player is the leader and players remain, block leaving
+  if (wasLeader && remainingAfterLeave.length > 0) {
+    return error("You are the lobby leader. Transfer ownership before leaving.", 400);
+  }
+
+  lobby.players = remainingAfterLeave;
 
   // Ensure both teams have captains
   ["team1", "team2"].forEach((team) => {
@@ -140,7 +162,8 @@ async function leaveLobby({ lobby, user, matchId }: ActionContext): Promise<Next
     }
   });
 
-  await lobby.save();
+  const saveErr2 = await safeSave(lobby);
+  if (saveErr2) return saveErr2;
   broadcastLobbyUpdate(matchId, lobby.toObject());
 
   // If the leaving player was the leader and no players remain, close the lobby
@@ -148,11 +171,6 @@ async function leaveLobby({ lobby, user, matchId }: ActionContext): Promise<Next
     await Lobby.deleteOne({ matchId });
     broadcastLobbyUpdate(matchId, { closed: true });
     return NextResponse.json({ success: true, closed: true });
-  }
-
-  // If the leaving player was the leader and players remain, block leaving
-  if (wasLeader && lobby.players.length > 0) {
-    return error("You are the lobby leader. Transfer ownership before leaving.", 400);
   }
 
   return NextResponse.json({ success: true });
@@ -179,7 +197,8 @@ async function kickPlayer({ lobby, user, body, matchId }: ActionContext): Promis
     }
   });
 
-  await lobby.save();
+  const saveErr3 = await safeSave(lobby);
+  if (saveErr3) return saveErr3;
   broadcastLobbyUpdate(matchId, { ...lobby.toObject(), kicked: removed.steamId });
   return NextResponse.json({ success: true, kicked: removed.steamId });
 }
@@ -218,7 +237,8 @@ async function leaveLobbyAndPromote({ lobby, user, matchId }: ActionContext): Pr
     }
   });
 
-  await lobby.save();
+  const saveErr4 = await safeSave(lobby);
+  if (saveErr4) return saveErr4;
   broadcastLobbyUpdate(matchId, { ...lobby.toObject(), newLeaderId: newLeader.steamId });
   return NextResponse.json({ success: true, newLeader: newLeader.displayName });
 }
@@ -228,7 +248,8 @@ async function ready({ lobby, user, matchId }: ActionContext): Promise<NextRespo
   if (!player) return error("Not in lobby", 403);
 
   player.isReady = true;
-  await lobby.save();
+  const saveErr5 = await safeSave(lobby);
+  if (saveErr5) return saveErr5;
 
   const allReady = lobby.players
     .filter(p => p.team !== "none")
@@ -249,7 +270,11 @@ async function ready({ lobby, user, matchId }: ActionContext): Promise<NextRespo
 async function shuffle({ lobby, user, matchId }: ActionContext): Promise<NextResponse> {
   if (!isPrivileged(lobby, user)) return error("Forbidden", 403);
 
-  const shuffled = [...lobby.players].sort(() => Math.random() - 0.5);
+  const shuffled = [...lobby.players];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
   const half = Math.floor(shuffled.length / 2);
   lobby.players = shuffled.map((p, i) => ({
     ...p,
@@ -257,7 +282,8 @@ async function shuffle({ lobby, user, matchId }: ActionContext): Promise<NextRes
     isCaptain: i === 0 || i === half,
   }));
 
-  await lobby.save();
+  const saveErr6 = await safeSave(lobby);
+  if (saveErr6) return saveErr6;
   broadcastLobbyUpdate(matchId, lobby.toObject());
   return NextResponse.json(lobby);
 }
@@ -296,7 +322,8 @@ async function fillBots({ lobby, user, matchId }: ActionContext): Promise<NextRe
   ];
 
   lobby.players.push(...bots);
-  await lobby.save();
+  const saveErr7 = await safeSave(lobby);
+  if (saveErr7) return saveErr7;
   broadcastLobbyUpdate(matchId, lobby.toObject());
   return NextResponse.json(lobby);
 }
@@ -315,7 +342,8 @@ async function clearBots({ lobby, user, matchId }: ActionContext): Promise<NextR
     if (p.team !== "team1" && p.team !== "team2") p.team = "none";
   });
 
-  await lobby.save();
+  const saveErr8 = await safeSave(lobby);
+  if (saveErr8) return saveErr8;
   broadcastLobbyUpdate(matchId, lobby.toObject());
   return NextResponse.json(lobby);
 }
@@ -330,7 +358,8 @@ async function setCaptain({ lobby, user, body, matchId }: ActionContext): Promis
   lobby.players.forEach(p => { if (p.team === target.team) p.isCaptain = false; });
   target.isCaptain = true;
 
-  await lobby.save();
+  const saveErr9 = await safeSave(lobby);
+  if (saveErr9) return saveErr9;
   broadcastLobbyUpdate(matchId, lobby.toObject());
   return NextResponse.json(lobby);
 }
@@ -345,7 +374,8 @@ async function transferLeader({ lobby, user, body, matchId }: ActionContext): Pr
   if (!target) return error("Player not found", 404);
 
   lobby.leaderId = targetSteamId;
-  await lobby.save();
+  const saveErr10 = await safeSave(lobby);
+  if (saveErr10) return saveErr10;
   broadcastLobbyUpdate(matchId, { ...lobby.toObject(), newLeaderId: targetSteamId });
   return NextResponse.json({ success: true, newLeader: target.displayName });
 }
@@ -377,7 +407,8 @@ async function updateSettings({ lobby, user, body, matchId }: ActionContext): Pr
   }
 
   lobby.settings = { ...lobby.settings, ...allowed };
-  await lobby.save();
+  const saveErr11 = await safeSave(lobby);
+  if (saveErr11) return saveErr11;
   broadcastLobbyUpdate(matchId, lobby.toObject());
   return NextResponse.json(lobby);
 }
@@ -396,17 +427,21 @@ async function startReadyCheck({ lobby, user, matchId }: ActionContext): Promise
 
   lobby.phase = "ready_check";
   lobby.players.forEach(p => (p.isReady = false));
-  await lobby.save();
+  const saveErr12 = await safeSave(lobby);
+  if (saveErr12) return saveErr12;
 
   const deadline = Date.now() + 5000;
   broadcastLobbyUpdate(matchId, { ...lobby.toObject(), readyCheckDeadline: deadline });
 
+  // NOTE: The bot-ready save() could theoretically overwrite a concurrent human
+  // ready-state change, but the window is small (~500ms) and acceptable.
   // Bots always ready up instantly
   setTimeout(async () => {
     const fresh = await Lobby.findOne({ matchId });
     if (!fresh || fresh.phase !== "ready_check") return;
     fresh.players.forEach((p: LobbyPlayer) => { if (p.steamId.startsWith("bot-")) p.isReady = true; });
-    await fresh.save();
+    const botSaveErr = await safeSave(fresh);
+    if (botSaveErr) return;
     broadcastLobbyUpdate(matchId, fresh.toObject());
   }, 500);
 
@@ -419,7 +454,8 @@ async function startReadyCheck({ lobby, user, matchId }: ActionContext): Promise
 
     fresh.phase = "waiting";
     fresh.players.forEach((p: LobbyPlayer) => (p.isReady = false));
-    await fresh.save();
+    const timeoutSaveErr = await safeSave(fresh);
+    if (timeoutSaveErr) return;
     broadcastLobbyUpdate(matchId, { ...fresh.toObject(), readyCheckFailed: true });
   }, 5500);
 
@@ -458,7 +494,8 @@ async function captainPick({ lobby, user, body, matchId }: ActionContext): Promi
   if (lobby.captainPickState.unpickedPlayers.length === 0) {
     await proceedAfterCaptainPick(lobby, matchId);
   } else {
-    await lobby.save();
+    const saveErr13 = await safeSave(lobby);
+    if (saveErr13) return saveErr13;
     broadcastLobbyUpdate(matchId, lobby.toObject());
     await advanceBotCaptainPicks(matchId);
   }
@@ -503,7 +540,8 @@ async function mapVeto({ lobby, user, body, matchId }: ActionContext): Promise<N
   if (lobby.mapVetoState.remainingMaps.length === 1) {
     await finalizeLobbyAndStartServer(lobby, matchId);
   } else {
-    await lobby.save();
+    const saveErr14 = await safeSave(lobby);
+    if (saveErr14) return saveErr14;
     broadcastLobbyUpdate(matchId, lobby.toObject());
     scheduleBotVeto(matchId);
   }
@@ -528,7 +566,8 @@ async function chat({ lobby, user, body, matchId }: ActionContext): Promise<Next
     createdAt: new Date(),
   });
 
-  await lobby.save();
+  const saveErr15 = await safeSave(lobby);
+  if (saveErr15) return saveErr15;
   broadcastLobbyUpdate(matchId, lobby.toObject());
   return NextResponse.json(lobby.toObject());
 }

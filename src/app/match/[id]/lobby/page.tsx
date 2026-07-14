@@ -10,6 +10,7 @@ import { Toast } from "@/src/app/components/ui/toast";
 import { Muted, PageTitle } from "@/src/app/components/ui/typography";
 import Link from "next/link";
 import { CS2_MAPS } from "@/src/backend/games/cs2/config/maps";
+import { MODE_LABEL } from "@/src/lib/config/constants";
 
 function parseWorkshopId(input: string): string | null {
   const trimmed = input.trim();
@@ -76,13 +77,6 @@ const PHASE_LABEL: Record<Phase, string> = {
   map_veto:     "Map veto",
   starting:     "Starting server…",
   finished:     "Match finished",
-};
-
-const MODE_LABEL: Record<string, string> = {
-  use_current_teams: "Use Current Teams",
-  pick_map:          "Pick Map",
-  captain_pick:      "Captain Pick",
-  captain_map_veto:  "Captain Pick + Map Veto",
 };
 
 const IS_DEV = process.env.NODE_ENV === "development";
@@ -319,7 +313,7 @@ export default function LobbyPage() {
       ? others.length > 0 ? "leave_lobby_and_promote" : "leave_lobby_and_close"
       : "leave_lobby";
     await lobbyAction(actionName);
-    router.push("/match");
+    router.push("/");
   }
 
   async function sendChat(e: FormEvent<HTMLFormElement>) {

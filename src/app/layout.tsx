@@ -1,6 +1,12 @@
+import type { Metadata } from 'next';
 import { Poppins } from 'next/font/google';
 import './styles/globals.css';
 import Header from './components/layout/header';
+
+export const metadata: Metadata = {
+	title: 'Pelipaja.net',
+	description: 'Create custom CS2 matches with your friends. Login with Steam to create or join a lobby.',
+};
 
 const poppins = Poppins({
 	variable: '--font-poppins',
@@ -20,7 +26,7 @@ export default function RootLayout({
 				className={`${poppins.variable} min-h-screen overflow-y-auto antialiased`}
 			>
 				<Header />
-				<main className='min-h-screen pt-[88px]'>{children}</main>
+				<div className='min-h-screen pt-[88px]'>{children}</div>
 			</body>
 		</html>
 	);
