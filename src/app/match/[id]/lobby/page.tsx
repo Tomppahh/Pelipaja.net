@@ -530,7 +530,7 @@ export default function LobbyPage() {
           {(settingsMode === "pick_map" || settingsMode === "captain_map_veto") && (
             <div className="mt-4">
               <p className="mb-1 text-sm text-[var(--muted)]">Map pool (maps included in veto)</p>
-              <p className="mb-2 text-xs text-[var(--muted)]">Click a map to include or exclude it from the veto.</p>
+              <p className="mb-2 text-xs text-[var(--muted)]">Click a map to add or remove it.</p>
               <div className="flex flex-wrap gap-2">
                 {CS2_MAPS.map(map => (
                   <button
