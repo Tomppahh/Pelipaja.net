@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/src/backend/lib/db";
-import { getSession } from "@/src/backend/lib/session";
 import Match from "@/src/models/Match";
 import MatchResult from "@/src/models/MatchResult";
 import Lobby from "@/src/models/lobby";
@@ -34,14 +33,12 @@ export async function GET(
     });
   }
 
-  // For live/ready matches, proxy from the plugin's HTTP server (auth required)
+  // For live/ready matches, proxy from the plugin's HTTP server
   if (
     (match.status === "live" || match.status === "ready") &&
     process.env.HOME_PC_WG_IP &&
     match.apiPort
   ) {
-    const user = await getSession();
-    if (!user) return NextResponse.json({ error: "You must be logged in to view live match stats." }, { status: 401 });
     try {
       const res = await fetch(
         `http://${process.env.HOME_PC_WG_IP}:${match.apiPort}/stats`,
