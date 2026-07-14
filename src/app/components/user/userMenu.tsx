@@ -57,6 +57,9 @@ export default function UserMenu({ user }: Props) {
           <Link href="/" className="block px-4 py-2 text-[var(--foreground)] hover:bg-[var(--surface-hover)]">
             Home
           </Link>
+          <Link href="/stats" className="block px-4 py-2 text-[var(--foreground)] hover:bg-[var(--surface-hover)]">
+            My Stats
+          </Link>
           {user.role === "admin" && (
             <a href="/api/admin" className="block px-4 py-2 text-[var(--foreground)] hover:bg-[var(--surface-hover)]">
               Admin Panel

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/src/backend/lib/db";
-import { getSession } from "@/src/backend/lib/session";
 import Match from "@/src/models/Match";
 import MatchResult from "@/src/models/MatchResult";
 import Lobby from "@/src/models/lobby";
@@ -10,9 +9,6 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const user = await getSession();
-  if (!user) return NextResponse.json({ error: "You must be logged in to view match stats." }, { status: 401 });
-
   await connectDB();
   const { id } = await params;
 
@@ -23,7 +19,7 @@ export async function GET(
 
   const lobby = await Lobby.findOne({ matchId: id }).lean();
 
-  // For finished matches, return from database
+  // For finished matches, return from database (public)
   if (match.status === "finished" || match.status === "cancelled") {
     const result = await MatchResult.findOne({ matchId: id }).lean();
     return NextResponse.json({
