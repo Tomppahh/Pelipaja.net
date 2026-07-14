@@ -22,7 +22,7 @@ export default async function Header() {
 				<NavLink href='/about'>About</NavLink>
 				<NavLink href='/lobbies'>Lobbies</NavLink>
 				<NavLink href='/matches'>Matches</NavLink>
-                {/* Add more routes here */}
+                {user && <NavLink href='/stats'>Stats</NavLink>}
             </nav>
 
             <div className='ml-auto'>
