@@ -10,9 +10,6 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const user = await getSession();
-  if (!user) return NextResponse.json({ error: "You must be logged in to view match stats." }, { status: 401 });
-
   await connectDB();
   const { id } = await params;
 
@@ -23,7 +20,7 @@ export async function GET(
 
   const lobby = await Lobby.findOne({ matchId: id }).lean();
 
-  // For finished matches, return from database
+  // For finished matches, return from database (public)
   if (match.status === "finished" || match.status === "cancelled") {
     const result = await MatchResult.findOne({ matchId: id }).lean();
     return NextResponse.json({
@@ -37,12 +34,14 @@ export async function GET(
     });
   }
 
-  // For live/ready matches, proxy from the plugin's HTTP server
+  // For live/ready matches, proxy from the plugin's HTTP server (auth required)
   if (
     (match.status === "live" || match.status === "ready") &&
     process.env.HOME_PC_WG_IP &&
     match.apiPort
   ) {
+    const user = await getSession();
+    if (!user) return NextResponse.json({ error: "You must be logged in to view live match stats." }, { status: 401 });
     try {
       const res = await fetch(
         `http://${process.env.HOME_PC_WG_IP}:${match.apiPort}/stats`,
