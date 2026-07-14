@@ -58,7 +58,7 @@ interface Lobby {
   leaderId: string;
   players: LobbyPlayer[];
   messages?: LobbyMessage[];
-  settings: { teamSize: number; mode: string; mapPool?: string[]; name?: string; isPublic?: boolean; workshopMapName?: string; workshopMapId?: string; map?: string };
+  settings: { teamSize: number; mode: string; mapPool?: string[]; name?: string; isPublic?: boolean; workshopMapName?: string; workshopMapId?: string; map?: string; password?: string };
   phase: Phase;
   captainPickState?: { currentTurn: Team; unpickedPlayers: string[] };
   mapVetoState?: {
@@ -103,6 +103,11 @@ export default function LobbyPage() {
   const [settingsWorkshopInput,setSettingsWorkshopInput] = useState("");
   const [settingsWorkshopName, setSettingsWorkshopName] = useState("");
   const [settingsSaving,       setSettingsSaving]       = useState(false);
+  const [settingsName,         setSettingsName]         = useState("");
+  const [settingsIsPublic,     setSettingsIsPublic]     = useState(false);
+  const [settingsPassword,     setSettingsPassword]     = useState("");
+  const [settingsMapPool,      setSettingsMapPool]      = useState<string[]>(CS2_MAPS);
+  const [readyCheckFailed,     setReadyCheckFailed]     = useState(false);
 
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const joinedRef     = useRef(false);
@@ -158,12 +163,18 @@ export default function LobbyPage() {
     setSettingsMap(lobby.settings.map ?? CS2_MAPS[0]);
     setSettingsWorkshopInput(lobby.settings.workshopMapId ?? "");
     setSettingsWorkshopName(lobby.settings.workshopMapName ?? "");
+    setSettingsName(lobby.settings.name ?? "");
+    setSettingsIsPublic(!!lobby.settings.isPublic);
+    setSettingsMapPool(lobby.settings.mapPool ?? CS2_MAPS);
   }, [
     lobby?.settings.mode,
     lobby?.settings.teamSize,
     lobby?.settings.map,
     lobby?.settings.workshopMapId,
     lobby?.settings.workshopMapName,
+    lobby?.settings.name,
+    lobby?.settings.isPublic,
+    lobby?.settings.mapPool,
   ]);
   /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
@@ -203,6 +214,7 @@ export default function LobbyPage() {
         const data = JSON.parse(e.data);
         if (data.heartbeat) return;
         if (data.closed)    { setError("This lobby has been closed."); es.close(); return; }
+        if (data.readyCheckFailed) { setReadyCheckFailed(true); }
         if (data.__type === "matchUpdate") {
           setMatch(prev => prev ? { ...prev, ...data } : data);
           return;
@@ -294,6 +306,10 @@ export default function LobbyPage() {
         workshopMapId: settingsUseWorkshop ? workshopId : undefined,
         workshopMapName: settingsUseWorkshop ? workshopName : undefined,
         map: settingsUseWorkshop ? undefined : mapName,
+        name: settingsName,
+        isPublic: settingsIsPublic,
+        password: settingsPassword || undefined,
+        mapPool: settingsMapPool,
       },
     });
     setSettingsSaving(false);
@@ -361,6 +377,13 @@ export default function LobbyPage() {
         </div>
       )}
 
+      {/* Ready check failed banner */}
+      {readyCheckFailed && (
+        <div className="mb-4">
+          <Toast message="Ready check failed — not all players confirmed in time." variant="error" onDismiss={() => setReadyCheckFailed(false)} />
+        </div>
+      )}
+
       {/* Lobby settings */}
       {canEditSettings && (
         <section className="mb-8 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 p-8 shadow-2xl backdrop-blur">
@@ -396,6 +419,42 @@ export default function LobbyPage() {
               onChange={e => setSettingsTeamSize(Number(e.target.value))}
               className="w-20 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
             />
+          </div>
+
+          {/* Lobby name */}
+          <div className="mt-4">
+            <label className="mb-1 block text-xs font-semibold text-[var(--muted)]">Lobby name</label>
+            <input
+              type="text"
+              value={settingsName}
+              onChange={e => setSettingsName(e.target.value)}
+              maxLength={60}
+              placeholder="Optional lobby name"
+              className="w-full max-w-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            />
+          </div>
+
+          {/* Public toggle + password */}
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            <label className="flex items-center gap-2 text-sm text-[var(--muted)]">
+              <input
+                type="checkbox"
+                checked={settingsIsPublic}
+                onChange={e => setSettingsIsPublic(e.target.checked)}
+                className="h-4 w-4 rounded border-[var(--border)]"
+              />
+              Public lobby
+            </label>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-[var(--muted)]">Password</span>
+              <input
+                type="text"
+                value={settingsPassword}
+                onChange={e => setSettingsPassword(e.target.value)}
+                placeholder="Leave empty for no password"
+                className="w-48 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              />
+            </div>
           </div>
 
           {/* Map chooser — shown for fixed-map modes (no map veto) */}
@@ -475,6 +534,32 @@ export default function LobbyPage() {
             </div>
           )}
 
+          {/* Map pool editor — only for veto modes */}
+          {(settingsMode === "pick_map" || settingsMode === "captain_map_veto") && (
+            <div className="mt-6">
+              <p className="mb-2 text-sm text-[var(--muted)]">Map pool (maps included in veto)</p>
+              <div className="flex flex-wrap gap-2">
+                {CS2_MAPS.map(map => (
+                  <button
+                    key={map}
+                    onClick={() => {
+                      setSettingsMapPool(prev =>
+                        prev.includes(map) ? prev.filter(m => m !== map) : [...prev, map]
+                      );
+                    }}
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                      settingsMapPool.includes(map)
+                        ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+                        : "border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] line-through hover:bg-[var(--surface-hover)]"
+                    }`}
+                  >
+                    {map}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <button
               onClick={saveLobbySettings}
@@ -506,8 +591,11 @@ export default function LobbyPage() {
         </div>
 
         <div className="flex shrink-0 flex-wrap gap-2">
-          {(lobby.phase === "waiting" || lobby.phase === "ready_check") && me && !me.isReady && (
+          {(lobby.phase === "waiting" || lobby.phase === "ready_check") && me && me.team !== "none" && !me.isReady && (
             <Button onClick={() => lobbyAction("ready")}>Ready Up</Button>
+          )}
+          {lobby.phase === "ready_check" && me && me.isReady && (
+            <Button variant="secondary" onClick={() => lobbyAction("unready")}>Un-ready</Button>
           )}
           {lobby.phase === "waiting" && isLeader && (
             <>
@@ -621,7 +709,11 @@ export default function LobbyPage() {
           {lobby.mapVetoState.vetoHistory.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-1.5">
               {lobby.mapVetoState.vetoHistory.map((v, i) => (
-                <span key={i} className="rounded bg-red-500/10 px-2 py-0.5 text-xs text-red-400 line-through">{v.map}</span>
+                <span key={i} className={`rounded px-2 py-0.5 text-xs line-through ${
+                  v.team === "team1"
+                    ? "bg-blue-500/10 text-blue-400"
+                    : "bg-orange-500/10 text-orange-400"
+                }`}>{v.map}</span>
               ))}
             </div>
           )}
@@ -659,10 +751,11 @@ export default function LobbyPage() {
           isLeader={isLeader} isAdmin={isAdmin} phase={lobby.phase}
           myTeam={me?.team ?? "none"}
           leaderId={lobby.leaderId}
+          captainPickTurn={lobby.captainPickState?.currentTurn}
           onJoin={()             => lobbyAction("join_team", { team: "team1" })}
           onLeaveTeam={()        => lobbyAction("leave_team")}
           onSetCaptain={steamId  => lobbyAction("set_captain", { targetSteamId: steamId })}
-          onKick={steamId        => lobbyAction("kick_player", { targetSteamId: steamId })}
+          onKick={steamId        => { if (confirm("Kick this player?")) lobbyAction("kick_player", { targetSteamId: steamId }) }}
           onTransferLeader={sid  => lobbyAction("transfer_leader", { targetSteamId: sid })}
         />
 
@@ -683,7 +776,7 @@ export default function LobbyPage() {
                   pickable={!!isMyCaptainTurn}
                   onPick={()           => lobbyAction("captain_pick", { pickedSteamId: p.steamId })}
                   onSetCaptain={()     => {}}
-                  onKick={()           => lobbyAction("kick_player", { targetSteamId: p.steamId })}
+                  onKick={()           => { if (confirm("Kick this player?")) lobbyAction("kick_player", { targetSteamId: p.steamId }) }}
                   onTransferLeader={() => lobbyAction("transfer_leader", { targetSteamId: p.steamId })}
                   leaderId={lobby.leaderId}
                 />
@@ -697,10 +790,11 @@ export default function LobbyPage() {
           isLeader={isLeader} isAdmin={isAdmin} phase={lobby.phase}
           myTeam={me?.team ?? "none"}
           leaderId={lobby.leaderId}
+          captainPickTurn={lobby.captainPickState?.currentTurn}
           onJoin={()             => lobbyAction("join_team", { team: "team2" })}
           onLeaveTeam={()        => lobbyAction("leave_team")}
           onSetCaptain={steamId  => lobbyAction("set_captain", { targetSteamId: steamId })}
-          onKick={steamId        => lobbyAction("kick_player", { targetSteamId: steamId })}
+          onKick={steamId        => { if (confirm("Kick this player?")) lobbyAction("kick_player", { targetSteamId: steamId }) }}
           onTransferLeader={sid  => lobbyAction("transfer_leader", { targetSteamId: sid })}
         />
       </div>
@@ -793,7 +887,7 @@ export default function LobbyPage() {
 function TeamPanel({
   label, team, players, teamSize, mySteamId, isLeader, isAdmin,
   phase, myTeam, onJoin, onLeaveTeam, onSetCaptain,
-  onKick, leaderId, onTransferLeader,
+  onKick, leaderId, onTransferLeader, captainPickTurn,
 }: {
   label: string;
   team: Team;
@@ -810,6 +904,7 @@ function TeamPanel({
   onKick: (steamId: string) => void;
   leaderId: string;
   onTransferLeader: (steamId: string) => void;
+  captainPickTurn?: Team;
 }) {
   const canJoin    = phase === "waiting" && myTeam !== team && players.length < teamSize;
   const amOnThisTeam = myTeam === team;
@@ -831,6 +926,7 @@ function TeamPanel({
           isMe={p.steamId === mySteamId}
           isLeader={isLeader} isAdmin={isAdmin}
           showCaptainToggle={phase === "waiting" && (isLeader || isAdmin)}
+          isActiveCaptain={phase === "captain_pick" && p.isCaptain && captainPickTurn === team}
           pickable={false}
           onPick={()           => {}}
           onSetCaptain={()     => onSetCaptain(p.steamId)}
@@ -866,7 +962,7 @@ function TeamPanel({
 // ── PlayerRow ─────────────────────────────────────────────────────────────────
 
 function PlayerRow({
-  player, isMe, isLeader, isAdmin, showCaptainToggle, pickable,
+  player, isMe, isLeader, isAdmin, showCaptainToggle, pickable, isActiveCaptain,
   onPick, onSetCaptain, extraAction, onKick, leaderId, onTransferLeader,
 }: {
   player: LobbyPlayer;
@@ -875,6 +971,7 @@ function PlayerRow({
   isAdmin: boolean;
   showCaptainToggle: boolean;
   pickable: boolean;
+  isActiveCaptain?: boolean;
   onPick: () => void;
   onSetCaptain: () => void;
   extraAction?: { label: string; onClick: () => void };
@@ -886,7 +983,8 @@ function PlayerRow({
 
   return (
     <div className={`group flex min-h-[96px] flex-col justify-between rounded-lg border px-3 py-2.5 text-sm transition ${
-      isMe ? "border-[var(--accent)]/40 bg-[var(--accent)]/10" : "border-[var(--border)] bg-[var(--surface)]"
+      isActiveCaptain ? "border-[var(--accent)] bg-[var(--accent)]/15 ring-1 ring-[var(--accent)]/30"
+      : isMe ? "border-[var(--accent)]/40 bg-[var(--accent)]/10" : "border-[var(--border)] bg-[var(--surface)]"
     }`}>
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
