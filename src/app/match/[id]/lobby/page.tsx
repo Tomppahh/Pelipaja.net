@@ -516,9 +516,14 @@ export default function LobbyPage() {
             <Button onClick={() => lobbyAction("ready")}>Ready Up</Button>
           )}
           {lobby.phase === "waiting" && isLeader && (
-            <Button variant="secondary" onClick={() => lobbyAction("start_ready_check")}>
-              Start Ready Check
-            </Button>
+            <>
+              <Button variant="secondary" onClick={() => lobbyAction("shuffle")}>
+                Shuffle Teams
+              </Button>
+              <Button variant="secondary" onClick={() => lobbyAction("start_ready_check")}>
+                Start Ready Check
+              </Button>
+            </>
           )}
           {match && canCancel && (
             <button

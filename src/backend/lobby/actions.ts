@@ -249,15 +249,38 @@ async function ready({ lobby, user, matchId }: ActionContext): Promise<NextRespo
 async function shuffle({ lobby, user, matchId }: ActionContext): Promise<NextResponse> {
   if (!isPrivileged(lobby, user)) return error("Forbidden", 403);
 
-  const shuffled = [...lobby.players].sort(() => Math.random() - 0.5);
-  const half = Math.floor(shuffled.length / 2);
-  lobby.players = shuffled.map((p, i) => ({
+  if (lobby.settings.teamSize <= 1) return error("Nothing to shuffle with team size 1", 400);
+
+  // Identify the two captains — they stay on their sides
+  const captain1 = lobby.players.find(p => p.isCaptain && p.team === "team1");
+  const captain2 = lobby.players.find(p => p.isCaptain && p.team === "team2");
+
+  // Everyone who isn't a captain gets shuffled
+  const others = lobby.players.filter(
+    p => p.steamId !== captain1?.steamId && p.steamId !== captain2?.steamId
+  );
+  for (let i = others.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [others[i], others[j]] = [others[j], others[i]];
+  }
+
+  const half = Math.floor(others.length / 2);
+  const shuffled = others.map((p, i) => ({
     ...p,
-    team: i < half ? "team1" : "team2",
-    isCaptain: i === 0 || i === half,
+    team: (i < half ? "team1" : "team2") as "team1" | "team2",
+    isCaptain: false,
   }));
 
+  // Rebuild player list: captains first (in their original positions), then shuffled players
+  lobby.players = [
+    ...(captain1 ? [{ ...captain1, team: "team1" as const, isCaptain: true }] : []),
+    ...(captain2 ? [{ ...captain2, team: "team2" as const, isCaptain: true }] : []),
+    ...shuffled,
+  ];
+
   await lobby.save();
+  broadcastLobbyUpdate(matchId, lobby.toObject());
+  return NextResponse.json(lobby);
   broadcastLobbyUpdate(matchId, lobby.toObject());
   return NextResponse.json(lobby);
 }
