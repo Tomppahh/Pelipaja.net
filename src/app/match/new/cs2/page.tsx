@@ -3,22 +3,17 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { CS2_MAPS } from "@/src/backend/games/cs2/config/maps";
-import { CS2_MODES, CS2_LOBBY_MODES, type LobbyModeId } from "@/src/backend/games/cs2/config/modes";
 
 export default function CreateCS2MatchPage() {
   const router = useRouter();
-  const [selectedMode, setSelectedMode] = useState(CS2_MODES[0]);
-  const [lobbyType, setLobbyType] = useState<LobbyModeId>("use_current_teams");
-  const [teamSize, setTeamSize] = useState(CS2_MODES[0].defaultTeamSize);
+  const [isPublic, setIsPublic] = useState(false);
+  const [teamSize, setTeamSize] = useState(5);
+  const [captainDraft, setCaptainDraft] = useState(false);
+  const [mapVeto, setMapVeto] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [authChecked, setAuthChecked] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
-
-  // Public lobby
-  const [isPublic, setIsPublic] = useState(false);
-  const [lobbyName, setLobbyName] = useState("");
-  const [lobbyPassword, setLobbyPassword] = useState("");
 
   useEffect(() => {
     fetch("/api/me")
@@ -33,10 +28,11 @@ export default function CreateCS2MatchPage() {
       });
   }, []);
 
-  function handleModeChange(modeId: string) {
-    const mode = CS2_MODES.find(m => m.id === modeId)!;
-    setSelectedMode(mode);
-    setTeamSize(mode.defaultTeamSize);
+  function getLobbyMode() {
+    if (captainDraft && mapVeto) return "captain_map_veto";
+    if (captainDraft) return "captain_pick";
+    if (mapVeto) return "pick_map";
+    return "use_current_teams";
   }
 
   async function handleSubmit() {
@@ -45,25 +41,18 @@ export default function CreateCS2MatchPage() {
 
     try {
       const gameConfig: Record<string, unknown> = {
-        mode: selectedMode.id,
-        knifeRound: selectedMode.id === "competitive",
+        mode: "competitive",
+        knifeRound: true,
         isPublic,
-        name: lobbyName.trim() || undefined,
-        password: lobbyPassword || undefined,
+        map: CS2_MAPS[0],
       };
-
-      // Map is now chosen inside the lobby (so it's all in one place).
-      // Send a default so the server has something to fall back to.
-      if (lobbyType === "use_current_teams") {
-        gameConfig.map = CS2_MAPS[0];
-      }
 
       const res = await fetch("/api/matches", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           gameType: "cs2",
-          lobbyMode: lobbyType,
+          lobbyMode: getLobbyMode(),
           teamSize,
           gameConfig,
         }),
@@ -83,7 +72,6 @@ export default function CreateCS2MatchPage() {
       }
 
       router.push(`/match/${data.matchId}/lobby`);
-
     } catch {
       setError("Failed to create match");
       setLoading(false);
@@ -91,7 +79,7 @@ export default function CreateCS2MatchPage() {
   }
 
   return (
-    <div>
+    <div className="mx-auto max-w-xl">
       {authChecked && !loggedIn ? (
         <div className="flex flex-col items-center gap-4 py-16">
           <h1 className="text-2xl font-bold text-[var(--foreground)]">Log in required</h1>
@@ -102,132 +90,120 @@ export default function CreateCS2MatchPage() {
         </div>
       ) : (
         <>
-          <h1>Create CS2 Match</h1>
+          <h1 className="mb-1 text-2xl font-bold text-[var(--foreground)]">Create a Match</h1>
+          <p className="mb-8 text-sm text-[var(--muted)]">Set up your CS2 lobby. You can change most options after creating it.</p>
 
-      <div className="flex flex-col gap-2">
-        <h2 className="pt-3 text-[var(--muted)]">Game Mode</h2>
-
-        <div className="flex flex-wrap gap-2">
-          {CS2_MODES.map((mode) => {
-            const isSelected = selectedMode.id === mode.id;
-
-            return (
+          {/* Visibility */}
+          <section className="mb-8">
+            <p className="mb-1 text-sm font-semibold text-[var(--foreground)]">Who should see this lobby?</p>
+            <p className="mb-4 text-xs text-[var(--muted)]">Public lobbies appear in the lobby browser for anyone to join. Private lobbies are only accessible via invite link.</p>
+            <div className="grid grid-cols-2 gap-3">
               <button
-                key={mode.id}
-                onClick={() => handleModeChange(mode.id)}
-                className={`rounded-lg border px-4 py-2 text-sm font-semibold transition
-                  ${isSelected
-                    ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
-                    : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
-                  }`}
-              >
-                {mode.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div>
-        <h2 className="pt-3 text-[var(--muted)]">Lobby Type</h2>
-        <div className="flex flex-wrap gap-2">
-          {CS2_LOBBY_MODES.map((mode) => {
-            const isSelected = lobbyType === mode.id;
-            return (
-              <button
-                key={mode.id}
-                onClick={() => setLobbyType(mode.id)}
-                className={`rounded-lg border px-4 py-2 text-left text-sm font-semibold transition ${
-                  isSelected
-                    ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
-                    : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
+                onClick={() => setIsPublic(false)}
+                className={`rounded-xl border-2 px-5 py-4 text-left transition ${
+                  !isPublic
+                    ? "border-[var(--accent)] bg-[var(--accent)]/10"
+                    : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--muted)]"
                 }`}
               >
-                <div>{mode.label}</div>
-                <div className="mt-0.5 text-xs font-normal opacity-80">{mode.hint}</div>
+                <p className="font-semibold text-[var(--foreground)]">Private</p>
+                <p className="mt-1 text-xs text-[var(--muted)]">Invite only — share the link with your friends</p>
               </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div>
-        <h2 className="pt-3 text-[var(--muted)]">Team Size</h2>
-        <input
-          type="number"
-          min={1}
-          max={10}
-          value={teamSize}
-          onChange={e => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v > 0) setTeamSize(v); }}
-        />
-        <span> players per team</span>
-      </div>
-
-      <div>
-        <h2 className="pt-3 text-[var(--muted)]">Lobby Visibility</h2>
-        <div className="mb-3 flex gap-2">
-          <button
-            onClick={() => setIsPublic(false)}
-            className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
-              !isPublic
-                ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
-                : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
-            }`}
-          >
-            Private
-          </button>
-          <button
-            onClick={() => setIsPublic(true)}
-            className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
-              isPublic
-                ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
-                : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
-            }`}
-          >
-            Public
-          </button>
-        </div>
-
-        {isPublic && (
-          <div className="flex flex-col gap-3">
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-[var(--muted)]">
-                Lobby Name (optional)
-              </label>
-              <input
-                type="text"
-                value={lobbyName}
-                onChange={e => setLobbyName(e.target.value)}
-                maxLength={60}
-                placeholder="My CS2 Lobby"
-                className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
-              />
+              <button
+                onClick={() => setIsPublic(true)}
+                className={`rounded-xl border-2 px-5 py-4 text-left transition ${
+                  isPublic
+                    ? "border-[var(--accent)] bg-[var(--accent)]/10"
+                    : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--muted)]"
+                }`}
+              >
+                <p className="font-semibold text-[var(--foreground)]">Public</p>
+                <p className="mt-1 text-xs text-[var(--muted)]">Open to everyone — shown in the lobby browser</p>
+              </button>
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-[var(--muted)]">
-                Password (optional)
-              </label>
-              <input
-                type="password"
-                value={lobbyPassword}
-                onChange={e => setLobbyPassword(e.target.value)}
-                placeholder="Leave open for anyone to join"
-                className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
-              />
+          </section>
+
+          {/* Team size */}
+          <section className="mb-8">
+            <p className="mb-1 text-sm font-semibold text-[var(--foreground)]">How many players per team?</p>
+            <p className="mb-4 text-xs text-[var(--muted)]">Pick the team size for your match. You can always add bots to fill empty slots later.</p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setTeamSize(s => Math.max(1, s - 1))}
+                className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-lg font-bold text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+              >
+                −
+              </button>
+              <span className="w-12 text-center text-2xl font-bold text-[var(--foreground)]">{teamSize}</span>
+              <button
+                onClick={() => setTeamSize(s => Math.min(10, s + 1))}
+                className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-lg font-bold text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+              >
+                +
+              </button>
+              <span className="text-sm text-[var(--muted)]">players per team</span>
             </div>
-          </div>
-        )}
-      </div>
+          </section>
 
-      {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
+          {/* Lobby options */}
+          <section className="mb-8">
+            <p className="mb-1 text-sm font-semibold text-[var(--foreground)]">Would you like to…</p>
+            <p className="mb-4 text-xs text-[var(--muted)]">Optional features you can enable for this lobby.</p>
 
-      <button
-        onClick={handleSubmit}
-        disabled={loading}
-        className="mt-5 rounded-lg border border-[var(--accent-2)] bg-[var(--accent-2)] px-5 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {loading ? "Creating..." : "Create Match"}
-      </button>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => setCaptainDraft(v => !v)}
+                className={`flex items-center justify-between rounded-xl border-2 px-5 py-4 text-left transition ${
+                  captainDraft
+                    ? "border-[var(--accent)] bg-[var(--accent)]/10"
+                    : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--muted)]"
+                }`}
+              >
+                <div>
+                  <p className="font-semibold text-[var(--foreground)]">Have captains draft players?</p>
+                  <p className="mt-1 text-xs text-[var(--muted)]">Captains take turns picking players for their teams instead of players choosing freely.</p>
+                </div>
+                <div className={`ml-4 h-6 w-11 shrink-0 rounded-full transition ${
+                  captainDraft ? "bg-[var(--accent)]" : "bg-[var(--muted)]/30"
+                }`}>
+                  <div className={`h-5 w-5 translate-y-0.5 rounded-full bg-white shadow transition ${
+                    captainDraft ? "translate-x-5.5" : "translate-x-0.5"
+                  }`} />
+                </div>
+              </button>
+
+              <button
+                onClick={() => setMapVeto(v => !v)}
+                className={`flex items-center justify-between rounded-xl border-2 px-5 py-4 text-left transition ${
+                  mapVeto
+                    ? "border-[var(--accent)] bg-[var(--accent)]/10"
+                    : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--muted)]"
+                }`}
+              >
+                <div>
+                  <p className="font-semibold text-[var(--foreground)]">Run a map veto?</p>
+                  <p className="mt-1 text-xs text-[var(--muted)]">Captains alternate banning maps until one remains. If disabled, you pick the map yourself.</p>
+                </div>
+                <div className={`ml-4 h-6 w-11 shrink-0 rounded-full transition ${
+                  mapVeto ? "bg-[var(--accent)]" : "bg-[var(--muted)]/30"
+                }`}>
+                  <div className={`h-5 w-5 translate-y-0.5 rounded-full bg-white shadow transition ${
+                    mapVeto ? "translate-x-5.5" : "translate-x-0.5"
+                  }`} />
+                </div>
+              </button>
+            </div>
+          </section>
+
+          {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
+
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="w-full rounded-xl bg-[var(--accent-2)] px-6 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading ? "Creating…" : "Create Match"}
+          </button>
         </>
       )}
     </div>

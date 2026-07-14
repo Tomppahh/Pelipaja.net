@@ -103,9 +103,6 @@ export default function LobbyPage() {
   const [settingsWorkshopInput,setSettingsWorkshopInput] = useState("");
   const [settingsWorkshopName, setSettingsWorkshopName] = useState("");
   const [settingsSaving,       setSettingsSaving]       = useState(false);
-  const [settingsName,         setSettingsName]         = useState("");
-  const [settingsIsPublic,     setSettingsIsPublic]     = useState(false);
-  const [settingsPassword,     setSettingsPassword]     = useState("");
   const [settingsMapPool,      setSettingsMapPool]      = useState<string[]>(CS2_MAPS);
   const [readyCheckFailed,     setReadyCheckFailed]     = useState(false);
 
@@ -163,8 +160,6 @@ export default function LobbyPage() {
     setSettingsMap(lobby.settings.map ?? CS2_MAPS[0]);
     setSettingsWorkshopInput(lobby.settings.workshopMapId ?? "");
     setSettingsWorkshopName(lobby.settings.workshopMapName ?? "");
-    setSettingsName(lobby.settings.name ?? "");
-    setSettingsIsPublic(!!lobby.settings.isPublic);
     setSettingsMapPool(lobby.settings.mapPool ?? CS2_MAPS);
   }, [
     lobby?.settings.mode,
@@ -172,8 +167,6 @@ export default function LobbyPage() {
     lobby?.settings.map,
     lobby?.settings.workshopMapId,
     lobby?.settings.workshopMapName,
-    lobby?.settings.name,
-    lobby?.settings.isPublic,
     lobby?.settings.mapPool,
   ]);
   /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
@@ -306,9 +299,6 @@ export default function LobbyPage() {
         workshopMapId: settingsUseWorkshop ? workshopId : undefined,
         workshopMapName: settingsUseWorkshop ? workshopName : undefined,
         map: settingsUseWorkshop ? undefined : mapName,
-        name: settingsName,
-        isPublic: settingsIsPublic,
-        password: settingsPassword || undefined,
         mapPool: settingsMapPool,
       },
     });
@@ -419,42 +409,6 @@ export default function LobbyPage() {
               onChange={e => setSettingsTeamSize(Number(e.target.value))}
               className="w-20 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
             />
-          </div>
-
-          {/* Lobby name */}
-          <div className="mt-4">
-            <label className="mb-1 block text-xs font-semibold text-[var(--muted)]">Lobby name</label>
-            <input
-              type="text"
-              value={settingsName}
-              onChange={e => setSettingsName(e.target.value)}
-              maxLength={60}
-              placeholder="Optional lobby name"
-              className="w-full max-w-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
-            />
-          </div>
-
-          {/* Public toggle + password */}
-          <div className="mt-4 flex flex-wrap items-center gap-4">
-            <label className="flex items-center gap-2 text-sm text-[var(--muted)]">
-              <input
-                type="checkbox"
-                checked={settingsIsPublic}
-                onChange={e => setSettingsIsPublic(e.target.checked)}
-                className="h-4 w-4 rounded border-[var(--border)]"
-              />
-              Public lobby
-            </label>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-[var(--muted)]">Password</span>
-              <input
-                type="text"
-                value={settingsPassword}
-                onChange={e => setSettingsPassword(e.target.value)}
-                placeholder="Leave empty for no password"
-                className="w-48 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
-              />
-            </div>
           </div>
 
           {/* Map chooser — shown for fixed-map modes (no map veto) */}
