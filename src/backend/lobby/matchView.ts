@@ -1,6 +1,17 @@
 import Match from "@/src/models/Match";
 import Lobby from "@/src/models/lobby";
 
+type LobbyDoc = {
+  players: Array<{ team: string; isCaptain?: boolean; displayName: string }>;
+} | null | undefined;
+
+export function getTeamName(lobby: LobbyDoc, team: "team1" | "team2"): string {
+  if (!lobby) return team === "team1" ? "Team 1" : "Team 2";
+  const captain = lobby.players.find(p => p.team === team && p.isCaptain);
+  if (captain) return `Team ${captain.displayName}`;
+  return team === "team1" ? "Team 1" : "Team 2";
+}
+
 // Builds the same JSON view of a match that GET /api/matches/[id] returns,
 // so the SSE endpoint can emit an identical initial payload.
 export async function getMatchView(

@@ -19,7 +19,7 @@ interface MatchData {
 }
 
 export default function MatchPage() {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const [match, setMatch] = useState<MatchData | null>(null);
   const [error, setError] = useState("");
 

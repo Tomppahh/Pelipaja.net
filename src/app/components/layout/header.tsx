@@ -1,14 +1,15 @@
+import Link from "next/link"
 import { getSession } from "@/src/backend/lib/session"
 import UserMenu from "../user/userMenu";
 
 function NavLink({ href, children, plain }: { href: string; children: React.ReactNode; plain?: boolean }) {
     return (
-        <a
+        <Link
             href={href}
             className={`flex h-full items-center border-r border-[var(--border)] px-6 transition-colors duration-200 hover:bg-[var(--border)]/30 ${!plain && 'text-sm font-semibold uppercase tracking-widest'}`}
         >
             {children}
-        </a>
+        </Link>
     );
 }
 

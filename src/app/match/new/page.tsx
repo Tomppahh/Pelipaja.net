@@ -8,7 +8,7 @@ export default async function CreateMatchPage() {
   const user = await getSession();
   const { lobby } = ROLES;
 
-  if (!user) redirect("/login");
+  if (!user) redirect("/api/auth/steam");
   if (!hasRole(user.role, lobby)) redirect("/");
 
   return (

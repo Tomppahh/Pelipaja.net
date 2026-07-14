@@ -123,7 +123,7 @@ const MessageSchema = new Schema<LobbyMessage>(
 
 const LobbySchema = new Schema<ILobby>(
   {
-    matchId: { type: Schema.Types.ObjectId, ref: "Match", required: true },
+    matchId: { type: Schema.Types.ObjectId, ref: "Match", required: true, index: true },
     leaderId: { type: String, required: true },
       phase: { type: String, enum: ["waiting", "ready_check", "captain_pick", "map_veto", "starting", "finished"], default: "waiting" },
     players: { type: [PlayerSchema], default: [] },
@@ -144,6 +144,8 @@ const LobbySchema = new Schema<ILobby>(
   },
   { timestamps: true }
 );
+
+LobbySchema.index({ "players.steamId": 1 });
 
 const Lobby: Model<ILobby> =
   mongoose.models.Lobby ?? mongoose.model<ILobby>("Lobby", LobbySchema);

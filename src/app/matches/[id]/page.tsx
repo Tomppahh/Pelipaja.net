@@ -6,6 +6,7 @@ import { Card } from "@/src/app/components/ui/card";
 import { Button } from "@/src/app/components/ui/button";
 import { PageTitle, Muted } from "@/src/app/components/ui/typography";
 import type { PlayerMatchStats } from "@/src/lib/types/match";
+import { formatDuration } from "@/src/lib/helpers/utils";
 
 interface MatchData {
   status: string;
@@ -46,12 +47,6 @@ function entryWinPercent(p: PlayerMatchStats) {
 
 function sideLabel(side: string) {
   return side === "CT" ? "CT" : "T";
-}
-
-function formatDuration(seconds: number) {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}m ${s}s`;
 }
 
 export default function MatchDetailPage() {

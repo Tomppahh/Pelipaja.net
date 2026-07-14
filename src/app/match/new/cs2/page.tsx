@@ -158,7 +158,7 @@ export default function CreateCS2MatchPage() {
           min={1}
           max={10}
           value={teamSize}
-          onChange={e => setTeamSize(parseInt(e.target.value))}
+          onChange={e => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v > 0) setTeamSize(v); }}
         />
         <span> players per team</span>
       </div>

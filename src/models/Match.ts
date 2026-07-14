@@ -49,6 +49,7 @@ const MatchSchema = new Schema<IMatch>(
       type: String,
       enum: ["pending", "configuring", "ready", "live", "finished", "cancelled"],
       default: "pending",
+      index: true,
     },
     winner: {
       type: Schema.Types.ObjectId,

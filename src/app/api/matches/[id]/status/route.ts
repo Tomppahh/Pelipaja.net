@@ -1,17 +1,25 @@
 // src/app/api/matches/[id]/status/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import { connectDB } from "@/src/backend/lib/db";
 import Match from "@/src/models/Match";
 import MatchResult from "@/src/models/MatchResult";
 import Lobby from "@/src/models/lobby";
 import { destroyServer } from "@/src/backend/services/gameServerService";
 import { broadcastMatchUpdate, broadcastLobbyUpdate } from "@/src/backend/services/sse";
+import { getTeamName } from "@/src/backend/lobby/matchView";
 
 const VALID_STATUSES = ["pending", "configuring", "ready", "live", "finished", "cancelled"];
 
 function authorized(req: NextRequest) {
   const secret = req.headers.get("Authorization")?.replace("Bearer ", "") ?? "";
-  return secret === process.env.MATCHUP_API_SECRET;
+  const expected = process.env.MATCHUP_API_SECRET ?? "";
+  if (!secret || !expected) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(secret), Buffer.from(expected));
+  } catch {
+    return false;
+  }
 }
 
 export async function POST(
@@ -51,9 +59,9 @@ export async function POST(
   });
 
   try {
-    if (status === "configuring") {
-      const lobby = await Lobby.findOne({ matchId: id });
+    const lobby = await Lobby.findOne({ matchId: id });
 
+    if (status === "configuring") {
       // Solo test matches have no lobby — config was already sent directly, skip.
       if (!lobby) {
         return NextResponse.json({ ok: true });
@@ -104,7 +112,6 @@ export async function POST(
 
     if (status === "finished" || status === "cancelled") {
       if (match.gameId) {
-        const lobby = await Lobby.findOne({ matchId: id });
         const workshopId = lobby?.settings.workshopMapId;
         await destroyServer(match.gameId, workshopId ? [workshopId] : undefined);
       }
@@ -120,7 +127,6 @@ export async function POST(
 
     // Save match result with stats when match finishes
     if (status === "finished" && stats?.players) {
-      const lobby = await Lobby.findOne({ matchId: id });
       const gc = (match.gameConfig ?? {}) as Record<string, unknown>;
 
       // The plugin sends steamId as a number; lobby stores it as a string,
@@ -156,13 +162,6 @@ export async function POST(
       const team2Score =
         team2Side === "CT" ? (stats.score?.ct ?? 0) : (stats.score?.t ?? 0);
 
-      function getTeamName(team: "team1" | "team2"): string {
-        if (!lobby) return team === "team1" ? "Team 1" : "Team 2";
-        const captain = lobby.players.find(p => p.team === team && p.isCaptain);
-        if (captain) return `Team ${captain.displayName}`;
-        return team === "team1" ? "Team 1" : "Team 2";
-      }
-
       await MatchResult.create({
         matchId: id,
         map: stats.map ?? gc.map as string,
@@ -170,12 +169,12 @@ export async function POST(
         score: stats.score ?? { ct: 0, t: 0 },
         duration: Math.floor((Date.now() - match.createdAt.getTime()) / 1000),
         team1: {
-          name: getTeamName("team1"),
+          name: getTeamName(lobby, "team1"),
           score: team1Score,
           players: team1StatsList,
         },
         team2: {
-          name: getTeamName("team2"),
+          name: getTeamName(lobby, "team2"),
           score: team2Score,
           players: team2StatsList,
         },

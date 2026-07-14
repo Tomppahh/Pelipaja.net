@@ -4,6 +4,7 @@ import { getSession } from "@/src/backend/lib/session";
 import Match from "@/src/models/Match";
 import MatchResult from "@/src/models/MatchResult";
 import Lobby from "@/src/models/lobby";
+import { getTeamName } from "@/src/backend/lobby/matchView";
 
 export async function GET(
   _req: NextRequest,
@@ -22,14 +23,6 @@ export async function GET(
 
   const lobby = await Lobby.findOne({ matchId: id }).lean();
 
-  // Get team names from lobby captains — "Team <captain name>"
-  function getTeamName(team: "team1" | "team2"): string {
-    if (!lobby) return team === "team1" ? "Team 1" : "Team 2";
-    const captain = lobby.players.find(p => p.team === team && p.isCaptain);
-    if (captain) return `Team ${captain.displayName}`;
-    return team === "team1" ? "Team 1" : "Team 2";
-  }
-
   // For finished matches, return from database
   if (match.status === "finished" || match.status === "cancelled") {
     const result = await MatchResult.findOne({ matchId: id }).lean();
@@ -38,8 +31,8 @@ export async function GET(
       source: "database",
       data: result ? {
         ...result,
-        team1: { ...result.team1, name: getTeamName("team1") },
-        team2: { ...result.team2, name: getTeamName("team2") },
+        team1: { ...result.team1, name: getTeamName(lobby, "team1") },
+        team2: { ...result.team2, name: getTeamName(lobby, "team2") },
       } : null,
     });
   }
@@ -98,12 +91,12 @@ export async function GET(
           score: stats.score,
           round: stats.round,
           team1: {
-            name: getTeamName("team1"),
+            name: getTeamName(lobby, "team1"),
             score: team1Side === "CT" ? (stats.score?.ct ?? 0) : (stats.score?.t ?? 0),
             players: team1Players,
           },
           team2: {
-            name: getTeamName("team2"),
+            name: getTeamName(lobby, "team2"),
             score: team2Side === "CT" ? (stats.score?.ct ?? 0) : (stats.score?.t ?? 0),
             players: team2Players,
           },
