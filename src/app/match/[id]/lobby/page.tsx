@@ -375,34 +375,32 @@ export default function LobbyPage() {
 
       {/* Lobby settings */}
       {canEditSettings && (
-        <section className="mb-8 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 p-8 shadow-2xl backdrop-blur">
-          <h2 className="mb-2 font-display text-2xl font-bold tracking-tight text-[var(--foreground)]">Lobby Settings</h2>
-          <p className="text-sm text-[var(--muted)]">Pick how teams are formed and how the map is chosen. Modes where you choose a map show a map picker below; veto modes decide the map in-lobby.</p>
+        <section className="mb-8 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 p-6 shadow-2xl backdrop-blur">
+          <h2 className="mb-4 font-display text-xl font-bold tracking-tight text-[var(--foreground)]">Lobby Settings</h2>
 
-          {/* Team size */}
-          <div className="mt-6">
-            <p className="mb-2 text-sm text-[var(--muted)]">Players per team</p>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setSettingsTeamSize(s => Math.max(1, s - 1))}
-                className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-lg font-bold text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
-              >
-                −
-              </button>
-              <span className="w-12 text-center text-2xl font-bold text-[var(--foreground)]">{settingsTeamSize}</span>
-              <button
-                onClick={() => setSettingsTeamSize(s => Math.min(10, s + 1))}
-                className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-lg font-bold text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
-              >
-                +
-              </button>
+          {/* Team size + Toggles row */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <p className="mb-2 text-sm text-[var(--muted)]">Players per team</p>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setSettingsTeamSize(s => Math.max(1, s - 1))}
+                  className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-lg font-bold text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+                >
+                  −
+                </button>
+                <span className="w-12 text-center text-2xl font-bold text-[var(--foreground)]">{settingsTeamSize}</span>
+                <button
+                  onClick={() => setSettingsTeamSize(s => Math.min(10, s + 1))}
+                  className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-lg font-bold text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+                >
+                  +
+                </button>
+              </div>
             </div>
-          </div>
 
-          {/* Lobby toggles */}
-          <div className="mt-6">
-            <p className="mb-2 text-sm text-[var(--muted)]">Options</p>
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2">
+              <p className="mb-0.5 text-sm text-[var(--muted)]">Options</p>
               <button
                 onClick={() => {
                   const next = settingsMode === "captain_pick" || settingsMode === "captain_map_veto"
@@ -410,21 +408,18 @@ export default function LobbyPage() {
                     : (settingsMode === "use_current_teams" ? "captain_pick" : "captain_map_veto");
                   setSettingsMode(next);
                 }}
-                className={`flex items-center justify-between rounded-xl border-2 px-5 py-4 text-left transition ${
+                className={`flex items-center justify-between rounded-lg border-2 px-4 py-2.5 text-left transition ${
                   settingsMode === "captain_pick" || settingsMode === "captain_map_veto"
                     ? "border-[var(--accent)] bg-[var(--accent)]/10"
                     : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--muted)]"
                 }`}
               >
-                <div>
-                  <p className="font-semibold text-[var(--foreground)]">Have captains draft players?</p>
-                  <p className="mt-1 text-xs text-[var(--muted)]">Captains take turns picking players for their teams instead of players choosing freely.</p>
-                </div>
-                <div className={`ml-4 h-6 w-11 shrink-0 rounded-full transition ${
+                <span className="text-sm font-semibold text-[var(--foreground)]">Captain draft</span>
+                <div className={`ml-4 h-5 w-9 shrink-0 rounded-full transition ${
                   settingsMode === "captain_pick" || settingsMode === "captain_map_veto" ? "bg-[var(--accent)]" : "bg-[var(--muted)]/30"
                 }`}>
-                  <div className={`h-5 w-5 translate-y-0.5 rounded-full bg-white shadow transition ${
-                    settingsMode === "captain_pick" || settingsMode === "captain_map_veto" ? "translate-x-5.5" : "translate-x-0.5"
+                  <div className={`h-4 w-4 translate-y-0.5 rounded-full bg-white shadow transition ${
+                    settingsMode === "captain_pick" || settingsMode === "captain_map_veto" ? "translate-x-4.5" : "translate-x-0.5"
                   }`} />
                 </div>
               </button>
@@ -436,21 +431,18 @@ export default function LobbyPage() {
                     : (settingsMode === "use_current_teams" ? "pick_map" : "captain_map_veto");
                   setSettingsMode(next);
                 }}
-                className={`flex items-center justify-between rounded-xl border-2 px-5 py-4 text-left transition ${
+                className={`flex items-center justify-between rounded-lg border-2 px-4 py-2.5 text-left transition ${
                   settingsMode === "pick_map" || settingsMode === "captain_map_veto"
                     ? "border-[var(--accent)] bg-[var(--accent)]/10"
                     : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--muted)]"
                 }`}
               >
-                <div>
-                  <p className="font-semibold text-[var(--foreground)]">Run a map veto?</p>
-                  <p className="mt-1 text-xs text-[var(--muted)]">Captains alternate banning maps until one remains. If disabled, you pick the map yourself.</p>
-                </div>
-                <div className={`ml-4 h-6 w-11 shrink-0 rounded-full transition ${
+                <span className="text-sm font-semibold text-[var(--foreground)]">Map veto</span>
+                <div className={`ml-4 h-5 w-9 shrink-0 rounded-full transition ${
                   settingsMode === "pick_map" || settingsMode === "captain_map_veto" ? "bg-[var(--accent)]" : "bg-[var(--muted)]/30"
                 }`}>
-                  <div className={`h-5 w-5 translate-y-0.5 rounded-full bg-white shadow transition ${
-                    settingsMode === "pick_map" || settingsMode === "captain_map_veto" ? "translate-x-5.5" : "translate-x-0.5"
+                  <div className={`h-4 w-4 translate-y-0.5 rounded-full bg-white shadow transition ${
+                    settingsMode === "pick_map" || settingsMode === "captain_map_veto" ? "translate-x-4.5" : "translate-x-0.5"
                   }`} />
                 </div>
               </button>
@@ -459,7 +451,7 @@ export default function LobbyPage() {
 
           {/* Map chooser — shown for fixed-map modes (no map veto) */}
           {(lobby.settings.mode === "use_current_teams" || lobby.settings.mode === "captain_pick") && (
-            <div className="mt-6">
+            <div className="mt-4">
               <p className="mb-2 text-sm text-[var(--muted)]">Map</p>
               <div className="flex flex-wrap gap-2">
                 <button
@@ -536,7 +528,7 @@ export default function LobbyPage() {
 
           {/* Map pool editor — only for veto modes */}
           {(settingsMode === "pick_map" || settingsMode === "captain_map_veto") && (
-            <div className="mt-6">
+            <div className="mt-4">
               <p className="mb-2 text-sm text-[var(--muted)]">Map pool (maps included in veto)</p>
               <div className="flex flex-wrap gap-2">
                 {CS2_MAPS.map(map => (
@@ -560,7 +552,7 @@ export default function LobbyPage() {
             </div>
           )}
 
-          <div className="mt-6 flex flex-wrap items-center gap-3">
+          <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
               onClick={saveLobbySettings}
               disabled={settingsSaving}
