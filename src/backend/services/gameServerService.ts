@@ -21,14 +21,11 @@ export function getMaxServers(): number {
 
 const docker = new Docker({ host: process.env.HOME_PC_WG_IP, port: 2375 });
 
-const VPS_IP = process.env.VPS_IP!;
-const FRP_TOKEN = process.env.FRP_TOKEN!;
-const FRP_SERVER_ADDR = process.env.FRP_SERVER_ADDR!;
-const CS2_RCON_PASS = process.env.CS2_RCON_PASS!;
-if (!process.env.MATCHUP_API_SECRET) {
-  throw new Error("MATCHUP_API_SECRET environment variable is required");
+function getEnvOrThrow(name: string): string {
+  const val = process.env[name];
+  if (!val) throw new Error(`${name} environment variable is required`);
+  return val;
 }
-const MATCHUP_API_SECRET = process.env.MATCHUP_API_SECRET;
 
 const activeGameIds = new Set<string>();
 
@@ -143,6 +140,12 @@ async function removeNetwork(name: string) {
 }
 
 export async function createServer(gameType: string, map: string, matchId: string) {
+  
+  const VPS_IP = getEnvOrThrow("VPS_IP");
+  const FRP_TOKEN = getEnvOrThrow("FRP_TOKEN");
+  const FRP_SERVER_ADDR = getEnvOrThrow("FRP_SERVER_ADDR");
+  const CS2_RCON_PASS = getEnvOrThrow("CS2_RCON_PASS");
+  const MATCHUP_API_SECRET = getEnvOrThrow("MATCHUP_API_SECRET");
   
   try {
     await syncActiveGameIdsFromDocker();

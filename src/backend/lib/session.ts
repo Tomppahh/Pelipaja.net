@@ -1,11 +1,12 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
-// Convert the secret string to bytes that jose can use
-if (!process.env.AUTH_SECRET) {
-  throw new Error("AUTH_SECRET environment variable is required");
+function getSecret() {
+  if (!process.env.AUTH_SECRET) {
+    throw new Error("AUTH_SECRET environment variable is required");
+  }
+  return new TextEncoder().encode(process.env.AUTH_SECRET);
 }
-const secret = new TextEncoder().encode(process.env.AUTH_SECRET);
 
 export interface SessionUser {
   id: string;
@@ -20,7 +21,7 @@ export async function createSession(user: SessionUser): Promise<void> {
   const token = await new SignJWT({ user })
     .setProtectedHeader({ alg: "HS256" })  // signing algorithm
     .setExpirationTime("7d")               // token expires in 7 days
-    .sign(secret);
+    .sign(getSecret());
 
   // Set the cookie
   const cookieStore = await cookies();
@@ -39,7 +40,7 @@ export async function getSession(): Promise<SessionUser | null> {
   if (!token) return null;
 
   try {
-    const { payload } = await jwtVerify(token, secret);
+    const { payload } = await jwtVerify(token, getSecret());
     return payload.user as SessionUser;
   } catch {
     return null;
