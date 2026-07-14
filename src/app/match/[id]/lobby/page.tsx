@@ -450,7 +450,7 @@ export default function LobbyPage() {
           </div>
 
           {/* Map chooser — shown for fixed-map modes (no map veto) */}
-          {(lobby.settings.mode === "use_current_teams" || lobby.settings.mode === "captain_pick") && (
+          {(settingsMode === "use_current_teams" || settingsMode === "captain_pick") && (
             <div className="mt-4">
               <p className="mb-2 text-sm text-[var(--muted)]">Map</p>
               <div className="flex flex-wrap gap-2">
