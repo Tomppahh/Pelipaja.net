@@ -125,6 +125,7 @@ async function leaveTeam({ lobby, user, matchId }: ActionContext): Promise<NextR
   const origTeam = player.team;
   player.team = "none";
   player.isCaptain = false;
+  player.isReady = false;
 
   // Ensure the original team still has a captain
   if (origTeam === "team1" || origTeam === "team2") {
@@ -245,6 +246,7 @@ async function leaveLobbyAndPromote({ lobby, user, matchId }: ActionContext): Pr
 async function ready({ lobby, user, matchId }: ActionContext): Promise<NextResponse> {
   const player = lobby.players.find(p => p.steamId === user.steamId);
   if (!player) return error("Not in lobby", 403);
+  if (player.team === "none") return error("Join a team first", 400);
 
   player.isReady = true;
   const saveErr5 = await safeSave(lobby);
@@ -261,6 +263,18 @@ async function ready({ lobby, user, matchId }: ActionContext): Promise<NextRespo
     broadcastLobbyUpdate(matchId, lobby.toObject());
   }
 
+  return NextResponse.json(lobby);
+}
+
+async function unready({ lobby, user, matchId }: ActionContext): Promise<NextResponse> {
+  const player = lobby.players.find(p => p.steamId === user.steamId);
+  if (!player) return error("Not in lobby", 403);
+  if (lobby.phase !== "ready_check") return error("Not in ready check", 400);
+
+  player.isReady = false;
+  const saveErr = await safeSave(lobby);
+  if (saveErr) return saveErr;
+  broadcastLobbyUpdate(matchId, lobby.toObject());
   return NextResponse.json(lobby);
 }
 
@@ -299,8 +313,6 @@ async function shuffle({ lobby, user, matchId }: ActionContext): Promise<NextRes
   ];
 
   await lobby.save();
-  broadcastLobbyUpdate(matchId, lobby.toObject());
-  return NextResponse.json(lobby);
   broadcastLobbyUpdate(matchId, lobby.toObject());
   return NextResponse.json(lobby);
 }
@@ -407,6 +419,18 @@ async function updateSettings({ lobby, user, body, matchId }: ActionContext): Pr
   const allowed: Record<string, unknown> = {};
   if (typeof incoming.mode === "string") allowed.mode = incoming.mode;
   if (typeof incoming.teamSize === "number") allowed.teamSize = incoming.teamSize;
+
+  // Lobby metadata
+  if (typeof incoming.name === "string") allowed.name = incoming.name.slice(0, 60);
+  if (typeof incoming.isPublic === "boolean") allowed.isPublic = incoming.isPublic;
+  if (typeof incoming.password === "string") {
+    allowed.password = incoming.password ? await bcrypt.hash(incoming.password, 10) : "";
+  }
+
+  // Map pool (array of map names)
+  if (Array.isArray(incoming.mapPool)) {
+    allowed.mapPool = incoming.mapPool.filter((m: unknown) => typeof m === "string");
+  }
 
   // Map chooser (only used for fixed-map modes like use_current_teams).
   // Drive clearing from the `useWorkshop` flag so we don't depend on the
@@ -599,6 +623,7 @@ export const lobbyActions: Record<string, ActionHandler> = {
   leave_lobby_and_close: leaveLobbyAndClose,
   leave_lobby_and_promote: leaveLobbyAndPromote,
   ready,
+  unready,
   shuffle,
   fill_bots: fillBots,
   clear_bots: clearBots,
