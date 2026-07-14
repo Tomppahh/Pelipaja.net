@@ -90,7 +90,13 @@ async function startCaptainPick(lobby: ILobby, matchId: string) {
 
 // Loops through bot captain turns automatically until a human captain needs to pick
 export async function advanceBotCaptainPicks(matchId: string) {
+  const MAX_ITERATIONS = 50;
+  let iterations = 0;
   while (true) {
+    if (++iterations > MAX_ITERATIONS) {
+      console.warn(`[Lobby] advanceBotCaptainPicks exceeded ${MAX_ITERATIONS} iterations for match ${matchId}, breaking out`);
+      break;
+    }
     const lobby = await Lobby.findOne({ matchId });
     if (!lobby || lobby.phase !== "captain_pick" || !lobby.captainPickState) return;
 
@@ -213,6 +219,8 @@ export async function finalizeLobbyAndStartServer(lobby: ILobby, matchId: string
     console.error(`[Lobby] Failed to start server for match ${matchId}:`, message);
     match.status = "cancelled";
     await match.save();
-    broadcastLobbyUpdate(matchId, { error: "Failed to start game server", details: message });
+    lobby.phase = "waiting";
+    await lobby.save();
+    broadcastLobbyUpdate(matchId, { ...lobby.toObject(), error: "Failed to start game server", details: message });
   }
 }

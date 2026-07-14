@@ -36,11 +36,7 @@ export async function GET(req: NextRequest) {
         const res = await fetch(
           `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=${process.env.STEAM_API_KEY}&steamids=${steamId}`
         );
-        console.log("steam api status:", res.status);
-        console.log("steam api key exists:", !!process.env.STEAM_API_KEY);
-        const text = await res.text();
-        console.log("steam api response:", text.substring(0, 200));
-        const data = JSON.parse(text);
+        const data = await res.json();
         const profile = data?.response?.players?.[0];
 
         let user = await User.findOne({ steamId });

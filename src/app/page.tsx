@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { getSession } from '../backend/lib/session';
 import {ROLES, hasRole} from "@/src/lib/config/settings"
 import { connectDB } from '@/src/backend/lib/db';
@@ -48,7 +49,7 @@ export default async function Home() {
 				{user && hasRole(user.role, lobby) && <CreateLobbyButton />}
 
 				{myMatchId && (
-					<a className="mt-4 inline-block text-sm text-[var(--foreground)] underline" href={`/match/${myMatchId}/lobby`}>Go to my Lobby</a>
+					<Link className="mt-4 inline-block text-sm text-[var(--foreground)] underline" href={`/match/${myMatchId}/lobby`}>Go to my Lobby</Link>
 				)}
 
 				{publicLobbies.length > 0 && (
@@ -56,11 +57,11 @@ export default async function Home() {
 						<h2 className="text-xl font-bold text-[var(--foreground)] mb-4">Open Lobbies</h2>
 						<div className="grid gap-3">
 							{publicLobbies.map((lobby) => (
-								<a
-									key={lobby.matchId}
-									href={`/match/${lobby.matchId}/lobby`}
-									className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 transition hover:bg-[var(--surface-hover)]"
-								>
+							<Link
+								key={lobby.matchId}
+								href={`/match/${lobby.matchId}/lobby`}
+								className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 transition hover:bg-[var(--surface-hover)]"
+							>
 									<div>
 										<span className="font-semibold text-[var(--foreground)]">{lobby.name || `${lobby.mode} Lobby`}</span>
 										<span className="ml-2 text-sm text-[var(--muted)]">{lobby.mode} · {lobby.teamSize}v{lobby.teamSize}</span>
@@ -70,15 +71,15 @@ export default async function Home() {
 									<div className="text-sm text-[var(--muted)]">
 										{lobby.playerCount}/{lobby.capacity}
 									</div>
-								</a>
+								</Link>
 							))}
 						</div>
-						<a href="/lobbies" className="mt-3 block text-center text-sm text-[var(--muted)] underline">View all</a>
+						<Link href="/lobbies" className="mt-3 block text-center text-sm text-[var(--muted)] underline">View all</Link>
 					</div>
 				)}
 
-				<h4 className='font-display text-l font-bold  pt-50 text-[var(--foreground)]'>Create custom CS2 Matches with your friends!</h4> 
-                <h4 className='font-display text-l font-bold  text-[var(--foreground)]'>Login with Steam to create or join a lobby</h4>       
+				<p className='font-display text-l font-bold pt-32 text-[var(--foreground)]'>Create custom CS2 Matches with your friends!</p>
+                <p className='font-display text-l font-bold text-[var(--foreground)]'>Login with Steam to create or join a lobby</p>       
 			</main>
 		</>
 	);

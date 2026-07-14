@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/src/app/components/ui/button";
 import { PageTitle, Muted } from "@/src/app/components/ui/typography";
+import { formatDuration } from "@/src/lib/helpers/utils";
 
 interface MatchSummary {
   _id: string;
@@ -94,12 +95,6 @@ export default function MatchesPage() {
     return `${Math.floor(hrs / 24)}d ago`;
   }
   /* eslint-enable react-hooks/purity */
-
-  function formatDuration(seconds: number) {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s.toString().padStart(2, "0")}`;
-  }
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">

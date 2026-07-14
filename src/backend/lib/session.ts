@@ -2,7 +2,10 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
 // Convert the secret string to bytes that jose can use
-const secret = new TextEncoder().encode(process.env.AUTH_SECRET!);
+if (!process.env.AUTH_SECRET) {
+  throw new Error("AUTH_SECRET environment variable is required");
+}
+const secret = new TextEncoder().encode(process.env.AUTH_SECRET);
 
 export interface SessionUser {
   id: string;

@@ -4,15 +4,19 @@ import { connectDB } from "@/src/backend/lib/db";
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-function getMaxServers(): number {
+let _maxServersCache: number | null = null;
+
+export function getMaxServers(): number {
+  if (_maxServersCache !== null) return _maxServersCache;
   try {
     const settingsPath = join(process.cwd(), 'settings.ini');
     const content = readFileSync(settingsPath, 'utf-8');
     const match = content.match(/CS2_MAX_SERVERS\s*=\s*(\d+)/);
-    return match ? parseInt(match[1], 10) : 3;
+    _maxServersCache = match ? parseInt(match[1], 10) : 3;
   } catch {
-    return 3;
+    _maxServersCache = 3;
   }
+  return _maxServersCache;
 }
 
 const docker = new Docker({ host: process.env.HOME_PC_WG_IP, port: 2375 });
@@ -21,7 +25,10 @@ const VPS_IP = process.env.VPS_IP!;
 const FRP_TOKEN = process.env.FRP_TOKEN!;
 const FRP_SERVER_ADDR = process.env.FRP_SERVER_ADDR!;
 const CS2_RCON_PASS = process.env.CS2_RCON_PASS!;
-const MATCHUP_API_SECRET = process.env.MATCHUP_API_SECRET!;
+if (!process.env.MATCHUP_API_SECRET) {
+  throw new Error("MATCHUP_API_SECRET environment variable is required");
+}
+const MATCHUP_API_SECRET = process.env.MATCHUP_API_SECRET;
 
 const activeGameIds = new Set<string>();
 
@@ -34,27 +41,19 @@ async function restoreActiveSlots() {
     activeGameIds.clear();
 
     const allContainers = await docker.listContainers({ all: true });
+    const runningGameIds = new Set<string>();
+
     for (const c of allContainers) {
       const name = getContainerName(c);
-      if (!name) continue; 
+      if (!name) continue;
 
-      if ((name.startsWith('pelipaja-cs') || name.startsWith('frpc-cs')) && c.State !== 'running') {
-        const container = docker.getContainer(c.Id);
-        try { await container.remove({ force: true }); } catch {}
-      }
-    }
-
-    const containers = await docker.listContainers({ all: false });
-    const runningGameIds = new Set<string>();
-    for (const c of containers) {
-      const name = getContainerName(c);
-      if (!name) continue; // ✅ guard
-
-      if (name.startsWith('pelipaja-cs')) {
+      if (name.startsWith('pelipaja-cs') && c.State === 'running') {
         const gameId = name.replace('pelipaja-', '');
         activeGameIds.add(gameId);
         runningGameIds.add(gameId);
-        console.log(`Restored active server: ${gameId}`);
+      } else if ((name.startsWith('pelipaja-cs') || name.startsWith('frpc-cs')) && c.State !== 'running') {
+        const container = docker.getContainer(c.Id);
+        try { await container.remove({ force: true }); } catch (err) { console.warn(`Failed to remove dead container ${name}:`, err); }
       }
     }
 
@@ -113,7 +112,7 @@ async function syncActiveGameIdsFromDocker() {
 
     if ((name.startsWith('pelipaja-cs') || name.startsWith('frpc-cs')) && c.State !== 'running') {
       const container = docker.getContainer(c.Id);
-      try { await container.remove({ force: true }); } catch {}
+      try { await container.remove({ force: true }); } catch (err) { console.warn(`Failed to remove dead container ${name}:`, err); }
     }
   }
 
@@ -125,7 +124,7 @@ async function syncActiveGameIdsFromDocker() {
     }
 
     const network = docker.getNetwork(n.Id);
-    try { await network.remove(); } catch {}
+    try { await network.remove(); } catch (err) { console.warn(`Failed to remove orphaned network ${n.Name}:`, err); }
   }
 }
 
@@ -133,14 +132,14 @@ async function removeContainer(name: string) {
   try {
     const c = docker.getContainer(name);
     await c.remove({ force: true });
-  } catch {}
+  } catch (err) { console.warn(`Failed to remove container ${name}:`, err); }
 }
 
 async function removeNetwork(name: string) {
   try {
     const n = docker.getNetwork(name);
     await n.remove();
-  } catch {}
+  } catch (err) { console.warn(`Failed to remove network ${name}:`, err); }
 }
 
 export async function createServer(gameType: string, map: string, matchId: string) {
@@ -328,8 +327,8 @@ export async function destroyAll() {
 
     if (name.startsWith('pelipaja-') || name.startsWith('frpc-')) {
       const container = docker.getContainer(c.Id);
-      try { await container.stop(); } catch {}
-      try { await container.remove({ force: true }); } catch {}
+      try { await container.stop(); } catch (err) { console.warn(`Failed to stop container ${name}:`, err); }
+      try { await container.remove({ force: true }); } catch (err) { console.warn(`Failed to remove container ${name}:`, err); }
     }
   }
 
@@ -337,7 +336,7 @@ export async function destroyAll() {
   for (const n of networks) {
     if (n.Name.startsWith('net-')) {
       const network = docker.getNetwork(n.Id);
-      try { await network.remove(); } catch {}
+      try { await network.remove(); } catch (err) { console.warn(`Failed to remove network ${n.Name}:`, err); }
     }
   }
 
