@@ -799,20 +799,6 @@ export default function LobbyPage() {
         />
       </div>
 
-      {/* Map pool */}
-      {lobby.phase === "waiting" && (lobby.settings.mapPool?.length ?? 0) > 0 && (
-        <div className="mt-8">
-          <p className="text-xs font-semibold uppercase tracking-widest text-[var(--muted)]">Map Pool</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {lobby.settings.mapPool!.map(map => (
-              <span key={map} className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-xs font-medium text-[var(--foreground)]">
-                {map}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Chat */}
       <div className="fixed bottom-6 right-4 z-50 sm:bottom-5 sm:right-5">
         <div className="relative flex w-[min(92vw,360px)] flex-col items-end gap-3">
