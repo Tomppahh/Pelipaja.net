@@ -11,7 +11,6 @@ import {
 } from "./phases";
 import { ActionContext, SessionUser } from "./types";
 import bcrypt from "bcrypt";
-import { VersionError } from "mongoose";
 
 type ActionHandler = (ctx: ActionContext) => Promise<NextResponse>;
 
@@ -26,7 +25,7 @@ async function safeSave(doc: ILobby): Promise<NextResponse | null> {
     await doc.save();
     return null;
   } catch (err: unknown) {
-    if (err instanceof VersionError) {
+    if (err instanceof Error && err.name === "VersionError") {
       return error("Conflict: document was modified by another request. Please retry.", 409);
     }
     throw err;
