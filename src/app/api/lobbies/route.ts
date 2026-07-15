@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/src/backend/lib/db";
-import Lobby from "@/src/models/lobby";
+import Lobby, { LobbyPlayer } from "@/src/models/lobby";
 
 export async function GET(req: NextRequest) {
   await connectDB();
@@ -10,14 +10,20 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get("limit") ?? "20", 10)));
   const skip = (page - 1) * limit;
 
+  const filter = {
+    "settings.isPublic": true,
+    phase: "waiting" as const,
+    players: { $ne: [] as LobbyPlayer[] },
+  };
+
   const [lobbies, total] = await Promise.all([
-    Lobby.find({ "settings.isPublic": true, phase: "waiting" })
+    Lobby.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .select("matchId leaderId settings phase players createdAt")
       .lean(),
-    Lobby.countDocuments({ "settings.isPublic": true, phase: "waiting" }),
+    Lobby.countDocuments(filter),
   ]);
 
   const result = lobbies.map((lobby) => {
