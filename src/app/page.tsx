@@ -71,22 +71,25 @@ export default async function Home() {
 				</div>
 			</section>
 
-			<section className='mt-12 flex gap-10 text-center'>
-				<div>
-					<p className='text-2xl font-bold text-[var(--foreground)]'>{stats.matches}</p>
-					<p className='text-sm text-[var(--muted)]'>Matches Played</p>
-				</div>
-				<div>
-					<p className='text-2xl font-bold text-[var(--foreground)]'>{stats.players}</p>
-					<p className='text-sm text-[var(--muted)]'>Players</p>
-				</div>
-				<div>
-					<p className='text-2xl font-bold text-[var(--foreground)]'>{stats.hours}</p>
-					<p className='text-sm text-[var(--muted)]'>Hours Played</p>
-				</div>
-				<div>
-					<p className='text-2xl font-bold text-[var(--foreground)]'>{stats.maps}</p>
-					<p className='text-sm text-[var(--muted)]'>Maps Played</p>
+			<section className='mt-16 w-full max-w-3xl text-center'>
+				<h2 className='text-sm font-semibold uppercase tracking-widest text-[var(--muted)] mb-6'>By the Numbers</h2>
+				<div className='flex justify-center gap-16'>
+					<div>
+						<p className='text-2xl font-bold text-[var(--foreground)]'>{stats.matches}</p>
+						<p className='text-sm text-[var(--muted)]'>Total Matches Played</p>
+					</div>
+					<div>
+						<p className='text-2xl font-bold text-[var(--foreground)]'>{stats.players}</p>
+						<p className='text-sm text-[var(--muted)]'>Registered Players</p>
+					</div>
+					<div>
+						<p className='text-2xl font-bold text-[var(--foreground)]'>{stats.hours}</p>
+						<p className='text-sm text-[var(--muted)]'>Total Hours Played</p>
+					</div>
+					<div>
+						<p className='text-2xl font-bold text-[var(--foreground)]'>{stats.maps}</p>
+						<p className='text-sm text-[var(--muted)]'>Unique Maps Played</p>
+					</div>
 				</div>
 			</section>
 		</main>
