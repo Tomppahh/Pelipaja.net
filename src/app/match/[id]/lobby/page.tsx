@@ -126,7 +126,7 @@ export default function LobbyPage() {
   const isServerReady  = match?.status === "ready" || match?.status === "live";
   const connectString  = match?.connectionIp && match?.connectionPort
     ? `connect ${match.connectionIp}:${match.connectionPort}` : null;
-  const readyMap       = match?.map ?? lobby?.settings.workshopMapName ?? lobby?.settings.map ?? lobby?.mapVetoState?.remainingMaps?.[0] ?? lobby?.settings.mapPool?.[0];
+  const readyMap       = lobby?.settings.workshopMapName ?? lobby?.settings.map ?? match?.map ?? lobby?.mapVetoState?.remainingMaps?.[0] ?? lobby?.settings.mapPool?.[0];
 
   const isMyCaptainTurn =
     lobby?.phase === "captain_pick" &&

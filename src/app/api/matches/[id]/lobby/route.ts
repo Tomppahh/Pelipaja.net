@@ -42,5 +42,10 @@ export async function POST(
   const lobby = await Lobby.findOne({ matchId: id });
   if (!lobby) return NextResponse.json({ error: "Lobby not found" }, { status: 404 });
 
-  return handler({ lobby, user, body, matchId: id });
+  try {
+    return await handler({ lobby, user, body, matchId: id });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unexpected error";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
 }

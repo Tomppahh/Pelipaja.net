@@ -82,9 +82,11 @@ export async function POST(
       const gameConfigMap = (match.gameConfig as Record<string, unknown>).map as string | undefined;
 
       const map =
+        gameConfigMap ??
+        lobby?.settings.workshopMapName ??
+        lobby?.settings.map ??
         lobby?.mapVetoState?.remainingMaps[0] ??
         lobby?.settings.mapPool?.[0] ??
-        gameConfigMap ??
         "de_mirage";
 
       const workshopId = lobby?.settings.workshopMapId ?? undefined;

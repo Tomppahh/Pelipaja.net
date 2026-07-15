@@ -133,9 +133,19 @@ export async function startMapVeto(lobby: ILobby, matchId: string) {
     return;
   }
 
+  // A map veto needs at least two maps to choose from. Honour the leader's
+  // saved pool (removing invalid entries); if too few remain, reject instead
+  // of silently falling back to a default pool.
+  const pool = (Array.isArray(lobby.settings.mapPool) ? lobby.settings.mapPool : [])
+    .filter((m) => typeof m === "string" && CS2_MAPS.includes(m));
+
+  if (pool.length < 2) {
+    throw new Error("Map veto needs at least two maps. Add more maps to the pool and try again.");
+  }
+
   lobby.phase = "map_veto";
   lobby.mapVetoState = {
-    remainingMaps: [...CS2_MAPS],
+    remainingMaps: pool,
     vetoHistory: [],
     currentTurn: lobby.coinFlipWinner ?? "team1",
   };
