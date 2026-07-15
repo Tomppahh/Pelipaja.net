@@ -2,7 +2,7 @@ import { connectDB } from "@/src/backend/lib/db";
 import Lobby, { ILobby } from "@/src/models/lobby";
 import Match, { MatchStatus } from "@/src/models/Match";
 
-const ONGOING_STATUSES: MatchStatus[] = ["configuring", "ready", "live"];
+const ONGOING_STATUSES: MatchStatus[] = ["pending", "configuring", "ready", "live"];
 
 export type OngoingLobby = {
   matchId: string;
