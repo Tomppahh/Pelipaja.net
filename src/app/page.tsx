@@ -1,9 +1,7 @@
-import Link from 'next/link';
 import { getSession } from '../backend/lib/session';
 import { ROLES, hasRole } from "@/src/lib/config/settings";
 import { CreateLobbyButton } from "@/src/app/components/user/createLobbyButton";
 import { connectDB } from '@/src/backend/lib/db';
-import Match from '@/src/models/Match';
 import MatchResult from '@/src/models/MatchResult';
 import User from '@/src/models/User';
 
@@ -11,16 +9,23 @@ export default async function Home() {
 	const user = await getSession();
 	const { lobby } = ROLES;
 
-	let stats = { matches: 0, players: 0, lobbies: 0 };
+	let stats = { matches: 0, players: 0, hours: 0, maps: 0 };
 
 	try {
 		await connectDB();
-		const [matches, players, lobbies] = await Promise.all([
+		const [matches, players, durationResult, mapsPlayed] = await Promise.all([
 			MatchResult.countDocuments(),
 			User.countDocuments(),
-			Match.countDocuments({ status: { $in: ["pending", "configuring", "ready", "live"] } }),
+			MatchResult.aggregate([{ $group: { _id: null, total: { $sum: "$duration" } } }]),
+			MatchResult.distinct("map"),
 		]);
-		stats = { matches, players, lobbies };
+		const totalSeconds = durationResult[0]?.total ?? 0;
+		stats = {
+			matches,
+			players,
+			hours: Math.round(totalSeconds / 3600),
+			maps: mapsPlayed.length,
+		};
 	} catch {}
 
 	return (
@@ -34,7 +39,7 @@ export default async function Home() {
 					Create lobbies, pick maps, and play — all automated.
 				</p>
 
-				<div className='mt-8 flex justify-center gap-4'>
+				<div className='mt-8 flex justify-center'>
 					{user && hasRole(user.role, lobby) ? (
 						<CreateLobbyButton />
 					) : (
@@ -42,9 +47,6 @@ export default async function Home() {
 							Get Started
 						</a>
 					)}
-					<Link href="/servers" className="inline-flex items-center rounded-lg border border-[var(--border)] px-6 py-3 text-sm font-bold uppercase tracking-wider text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]">
-						24/7 Servers
-					</Link>
 				</div>
 			</section>
 
@@ -79,8 +81,12 @@ export default async function Home() {
 					<p className='text-sm text-[var(--muted)]'>Players</p>
 				</div>
 				<div>
-					<p className='text-2xl font-bold text-[var(--foreground)]'>{stats.lobbies}</p>
-					<p className='text-sm text-[var(--muted)]'>Active Lobbies</p>
+					<p className='text-2xl font-bold text-[var(--foreground)]'>{stats.hours}</p>
+					<p className='text-sm text-[var(--muted)]'>Hours Played</p>
+				</div>
+				<div>
+					<p className='text-2xl font-bold text-[var(--foreground)]'>{stats.maps}</p>
+					<p className='text-sm text-[var(--muted)]'>Maps Played</p>
 				</div>
 			</section>
 		</main>
