@@ -17,6 +17,10 @@ export interface CommunityServerResponse {
 }
 
 async function fetchServerData(): Promise<CommunityServerResponse> {
+  if (!SERVER_ADDRESS) {
+    return { online: false };
+  }
+
   if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
     return cached.data;
   }
