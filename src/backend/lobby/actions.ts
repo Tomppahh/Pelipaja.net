@@ -41,11 +41,24 @@ function isPrivileged(lobby: ILobby, user: SessionUser) {
 async function join({ lobby, user, body, matchId }: ActionContext): Promise<NextResponse> {
   const alreadyIn = lobby.players.some(p => p.steamId === user.steamId);
   if (!alreadyIn) {
-    // Prevent joining if already in another active lobby
+    // Clean up stale lobby references: remove this player from any other lobbies
+    // that are idle or orphaned (no server running).  This handles cases where a
+    // browser tab was closed, the network dropped, or the user navigated away
+    // without leaving.
+    await Lobby.updateMany(
+      {
+        _id: { $ne: lobby._id },
+        "players.steamId": user.steamId,
+        phase: { $in: ["waiting", "starting"] },
+      },
+      { $pull: { players: { steamId: user.steamId } } },
+    );
+
+    // Prevent joining if already in another active lobby (ready_check, captain_pick, map_veto, etc.)
     const otherLobby = await Lobby.findOne({
       _id: { $ne: lobby._id },
       "players.steamId": user.steamId,
-      phase: { $nin: ["finished"] },
+      phase: { $nin: ["finished", "waiting", "starting"] },
     }).select("matchId");
     if (otherLobby) {
       return error("You are already in another lobby. Leave it first.", 409);
