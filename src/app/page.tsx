@@ -4,6 +4,7 @@ import {ROLES, hasRole} from "@/src/lib/config/settings"
 import { connectDB } from '@/src/backend/lib/db';
 import Lobby from '@/src/models/lobby';
 import { CreateLobbyButton } from "@/src/app/components/user/createLobbyButton";
+import { CommunityServerStatus } from "@/src/app/components/communityServerStatus";
 
 export default async function Home() {
 	const user = await getSession();
@@ -78,7 +79,9 @@ export default async function Home() {
 					</div>
 				)}
 
-				<p className='font-display text-l font-bold pt-32 text-[var(--foreground)]'>Create custom CS2 Matches with your friends!</p>
+				<CommunityServerStatus />
+
+			<p className='font-display text-l font-bold pt-32 text-[var(--foreground)]'>Create custom CS2 Matches with your friends!</p>
                 <p className='font-display text-l font-bold text-[var(--foreground)]'>Login with Steam to create or join a lobby</p>       
 			</main>
 		</>
