@@ -35,6 +35,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "teamSize must be between 1 and 10" }, { status: 400 });
   }
 
+  // Clean up stale lobby references (idle or orphaned — no server running) before
+  // checking if the user is already in one.
+  await Lobby.updateMany(
+    {
+      "players.steamId": user.steamId,
+      phase: { $in: ["waiting", "starting"] },
+    },
+    { $pull: { players: { steamId: user.steamId } } },
+  );
+
   const existingLobby = await Lobby.findOne({
     "players.steamId": user.steamId,
     phase: { $nin: ["starting", "finished"] },

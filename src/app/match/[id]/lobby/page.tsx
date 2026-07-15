@@ -194,6 +194,9 @@ export default function LobbyPage() {
           body: JSON.stringify({ action: "join" }),
         });
       })
+      .then(r => r?.json().then(data => {
+        if (r && !r.ok) setError(data?.error ?? "Failed to join lobby");
+      }))
       .catch(() => {});
   }, [id]);
 
