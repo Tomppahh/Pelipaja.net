@@ -19,8 +19,8 @@ export default async function Header() {
         <header className='fixed top-0 left-0 z-50 flex min-h-[70px] w-full items-center border-b border-[var(--border)] bg-[var(--surface)]/95 px-4 tracking-wide shadow-md backdrop-blur'>
             <nav className='flex items-center self-stretch '>
 				<NavLink href='/' plain><h1 className='font-display text-5xl font-bold'>Pelipaja.net</h1></NavLink>
-				<NavLink href='/about'>About</NavLink>
 				<NavLink href='/lobbies'>Lobbies</NavLink>
+				<NavLink href='/servers'>Servers</NavLink>
 				<NavLink href='/matches'>Matches</NavLink>
                 {user && <NavLink href='/stats'>Stats</NavLink>}
             </nav>

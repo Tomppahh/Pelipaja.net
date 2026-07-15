@@ -57,7 +57,7 @@ export function CommunityServerStatus() {
                 {server.online ? '24/7 Community Server' : 'Community Server'}
               </span>
             </div>
-            {server.online && server.name && (
+            {server.online && server.name && !server.name.includes('{{') && (
               <p className="mt-1 text-sm text-[var(--muted)]">{server.name}</p>
             )}
           </div>
