@@ -20,7 +20,7 @@ export default async function Header() {
             <nav className='flex items-center self-stretch '>
 				<NavLink href='/' plain><h1 className='font-display text-5xl font-bold'>Pelipaja.net</h1></NavLink>
 				<NavLink href='/lobbies'>Lobbies</NavLink>
-				<NavLink href='/servers'>Servers</NavLink>
+				<NavLink href='/servers'>24/7 Community Servers</NavLink>
 				<NavLink href='/matches'>Matches</NavLink>
                 {user && <NavLink href='/stats'>Stats</NavLink>}
             </nav>
