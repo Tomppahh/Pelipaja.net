@@ -20,8 +20,8 @@ export type LobbyPlayer = {
 export type LobbySettings = {
   teamSize: number;
   mode: LobbyMode;
-  mapPool?: string[];
   map?: string;
+  mapPool?: string[];
   workshopMapId?: string;
   workshopMapName?: string;
   isPublic?: boolean;
@@ -130,6 +130,7 @@ const LobbySchema = new Schema<ILobby>(
     settings: {
       teamSize: { type: Number, default: 5 },
       mode: { type: String, default: "use_current_teams" },
+      map: { type: String },
       mapPool: { type: [String], default: CS2_MAPS },
       workshopMapId: { type: String, maxlength: 32 },
       workshopMapName: { type: String, maxlength: 64 },

@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { getSession } from "@/src/backend/lib/session"
+import { getOngoingLobbyForUser } from "@/src/backend/lobby/queries";
 import UserMenu from "../user/userMenu";
 
 function NavLink({ href, children, plain }: { href: string; children: React.ReactNode; plain?: boolean }) {
@@ -15,6 +16,7 @@ function NavLink({ href, children, plain }: { href: string; children: React.Reac
 
 export default async function Header() {
     const user = await getSession();
+    const ongoing = user ? await getOngoingLobbyForUser(user.steamId) : null;
     return (
         <header className='fixed top-0 left-0 z-50 flex min-h-[70px] w-full items-center border-b border-[var(--border)] bg-[var(--surface)]/95 px-4 tracking-wide shadow-md backdrop-blur'>
             <nav className='flex items-center self-stretch '>
@@ -24,6 +26,19 @@ export default async function Header() {
 				<NavLink href='/matches'>Matches</NavLink>
                 {user && <NavLink href='/stats'>Stats</NavLink>}
             </nav>
+
+            {ongoing && (
+                <a
+                    href={`/match/${ongoing.matchId}/lobby`}
+                    className='ml-6 flex h-[44px] items-center gap-2 rounded-full border border-[var(--accent)] bg-[var(--accent)]/15 px-5 text-sm font-bold uppercase tracking-widest text-[var(--accent)] transition-colors duration-200 hover:bg-[var(--accent)] hover:text-[var(--accent-contrast)]'
+                >
+                    <span className='relative flex size-2'>
+                        <span className='absolute inline-flex size-full animate-ping rounded-full bg-[var(--accent)] opacity-75'></span>
+                        <span className='relative inline-flex size-2 rounded-full bg-[var(--accent)]'></span>
+                    </span>
+                    Your Ongoing Match
+                </a>
+            )}
 
             <div className='ml-auto'>
                 {user ? (
