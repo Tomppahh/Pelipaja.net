@@ -45,6 +45,7 @@ async function join({ lobby, user, body, matchId }: ActionContext): Promise<Next
     const otherLobby = await Lobby.findOne({
       _id: { $ne: lobby._id },
       "players.steamId": user.steamId,
+      phase: { $nin: ["finished"] },
     }).select("matchId");
     if (otherLobby) {
       return error("You are already in another lobby. Leave it first.", 409);
