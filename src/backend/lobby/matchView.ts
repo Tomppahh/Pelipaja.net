@@ -23,12 +23,24 @@ export async function getMatchView(
 
   const lobby = await Lobby.findOne({ matchId: id });
 
+  // An explicitly chosen fixed map (settings.map) must win over the pool's
+  // first entry. The pool fallback (de_mirage) previously caused a picked
+  // map like de_dust2 to snap back to de_mirage on read. Only fall
+  // back to the pool when no explicit map was chosen.
+  // Resolution order:
+  //   1. gameConfig.map          (legacy / non-lobby matches)
+  //   2. settings.workshopMapName (workshop lobbies)
+  //   3. settings.map           (explicitly chosen fixed map — authoritative)
+  //   4. mapVetoState.remainingMaps[0] (result of a map veto)
+  //   5. mapPool[0]  (de_mirage) — ONLY when no map was ever chosen.
+  // An explicit settings.map must always beat the pool's first entry, otherwise a
+  // picked map (e.g. de_dust2) silently falls back to de_mirage.
   const map =
     (match.gameConfig as Record<string, unknown> | undefined)?.map ??
     lobby?.settings.workshopMapName ??
     lobby?.settings.map ??
     lobby?.mapVetoState?.remainingMaps?.[0] ??
-    lobby?.settings.mapPool?.[0];
+    (lobby?.settings.map ? undefined : lobby?.settings.mapPool?.[0]);
 
   const mode =
     (match.gameConfig as Record<string, unknown> | undefined)?.mode ?? lobby?.settings.mode;

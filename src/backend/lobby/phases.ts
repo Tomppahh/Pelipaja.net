@@ -133,9 +133,18 @@ export async function startMapVeto(lobby: ILobby, matchId: string) {
     return;
   }
 
+  // Seed the veto from the lobby's chosen map pool. The leader can remove
+  // maps in settings; those removals live in settings.mapPool and must be
+  // honoured here (otherwise every map reappears in the veto). Fall back
+  // to the full default pool only for legacy lobbies with no pool set.
+  const pool =
+    Array.isArray(lobby.settings.mapPool) && lobby.settings.mapPool.length > 0
+      ? lobby.settings.mapPool.filter((m) => typeof m === "string" && CS2_MAPS.includes(m))
+      : [...CS2_MAPS];
+
   lobby.phase = "map_veto";
   lobby.mapVetoState = {
-    remainingMaps: [...CS2_MAPS],
+    remainingMaps: pool,
     vetoHistory: [],
     currentTurn: lobby.coinFlipWinner ?? "team1",
   };
