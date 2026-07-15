@@ -29,16 +29,19 @@ export function CommunityServerStatus() {
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
-    const fetchStatus = async () => {
+    const es = new EventSource('/api/communityserver');
+    es.onmessage = (e) => {
       try {
-        const res = await fetch('/api/communityserver');
-        if (res.ok) setServer(await res.json());
+        setServer(JSON.parse(e.data));
       } catch {}
     };
-
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 15000);
-    return () => clearInterval(interval);
+    es.onerror = () => {
+      es.close();
+      setTimeout(() => {
+        setServer({ online: false });
+      }, 5000);
+    };
+    return () => es.close();
   }, []);
 
   if (!server) return null;
