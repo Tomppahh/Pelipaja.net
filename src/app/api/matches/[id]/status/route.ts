@@ -45,9 +45,15 @@ export async function POST(
   }
 
   // Resolve the map name so the frontend can display it in banners.
+  const lobby = await Lobby.findOne({ matchId: id });
   const resolveMap = (m: typeof match) => {
     const fromGameConfig = (m.gameConfig as Record<string, unknown>)?.map as string | undefined;
-    return fromGameConfig ?? "de_mirage";
+    return fromGameConfig
+      ?? lobby?.settings.workshopMapName
+      ?? lobby?.settings.map
+      ?? lobby?.mapVetoState?.remainingMaps?.[0]
+      ?? lobby?.settings.mapPool?.[0]
+      ?? "de_mirage";
   };
 
   // Push status change to lobby SSE subscribers
@@ -59,8 +65,6 @@ export async function POST(
   });
 
   try {
-    const lobby = await Lobby.findOne({ matchId: id });
-
     if (status === "configuring") {
       // Solo test matches have no lobby — config was already sent directly, skip.
       if (!lobby) {
@@ -116,13 +120,21 @@ export async function POST(
         await destroyServer(match.gameId, workshopId ? [workshopId] : undefined);
       }
 
-      // Transition lobby out of "starting" so the lobby page stops showing
-      // "Creating Server…" after the match ends.
-      await Lobby.findOneAndUpdate(
-        { matchId: id, phase: "starting" },
-        { phase: "finished" }
-      );
-      broadcastLobbyUpdate(id, { phase: "finished" });
+      if (status === "cancelled") {
+        // Delete the lobby so all players are freed to join new ones
+        if (lobby) {
+          await Lobby.deleteOne({ matchId: id });
+          broadcastLobbyUpdate(id, { closed: true });
+        }
+      } else {
+        // Transition lobby out of "starting" so the lobby page stops showing
+        // "Creating Server…" after the match ends.
+        await Lobby.findOneAndUpdate(
+          { matchId: id, phase: "starting" },
+          { phase: "finished" }
+        );
+        broadcastLobbyUpdate(id, { phase: "finished" });
+      }
     }
 
     // Save match result with stats when match finishes

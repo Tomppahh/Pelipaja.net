@@ -68,12 +68,21 @@ export async function GET(
         (lobby?.players ?? []).filter(p => p.team === "team2").map(p => String(p.steamId))
       );
 
-      const team1Players = (stats.players ?? []).filter(
+      let team1Players = (stats.players ?? []).filter(
         (p: { steamId: string | number }) => lobbyTeam1Ids.has(String(p.steamId))
       );
-      const team2Players = (stats.players ?? []).filter(
+      let team2Players = (stats.players ?? []).filter(
         (p: { steamId: string | number }) => lobbyTeam2Ids.has(String(p.steamId))
       );
+
+      // Fallback: if lobby team assignments don't match any plugin players
+      // (e.g. solo test with no lobby, or Steam ID mismatch), split by in-game side
+      if (team1Players.length === 0 && team2Players.length === 0) {
+        const ct = (stats.players ?? []).filter((p: { team: string }) => p.team === "CT");
+        const t = (stats.players ?? []).filter((p: { team: string }) => p.team === "T");
+        team1Players = ct;
+        team2Players = t;
+      }
 
       // Derive each team's in-game side from its players' actual team field
       const team1Side: "CT" | "T" = team1Players[0]?.team === "T" ? "T" : "CT";

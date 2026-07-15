@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
   const existingLobby = await Lobby.findOne({
     "players.steamId": user.steamId,
-    phase: { $nin: ["starting"] },
+    phase: { $nin: ["starting", "finished"] },
   }).select("matchId");
   if (existingLobby) {
     return NextResponse.json(
