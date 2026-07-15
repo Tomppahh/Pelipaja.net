@@ -33,6 +33,16 @@ export function ensureLobbyCleanupStarted() {
         broadcastLobbyUpdate(matchId, { closed: true });
         log(`Lobby ${matchId} expired after 30 minutes of inactivity`);
       }
+
+      // Remove empty lobbies (no players) in waiting/starting phase — they are
+      // orphaned and should not linger in the public list.
+      const emptyResult = await Lobby.deleteMany({
+        phase: { $in: ["waiting", "starting"] },
+        players: { $size: 0 },
+      });
+      if (emptyResult.deletedCount > 0) {
+        log(`Removed ${emptyResult.deletedCount} empty lobby(ies)`);
+      }
     } catch (err) {
       console.error("[LobbyCleanup] Error:", err);
     }

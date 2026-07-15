@@ -42,17 +42,44 @@ async function join({ lobby, user, body, matchId }: ActionContext): Promise<Next
   const alreadyIn = lobby.players.some(p => p.steamId === user.steamId);
   if (!alreadyIn) {
     // Clean up stale lobby references: remove this player from any other lobbies
-    // that are idle or orphaned (no server running).  This handles cases where a
+    // that are idle or orphaned (no server running). This handles cases where a
     // browser tab was closed, the network dropped, or the user navigated away
-    // without leaving.
-    await Lobby.updateMany(
-      {
-        _id: { $ne: lobby._id },
-        "players.steamId": user.steamId,
-        phase: { $in: ["waiting", "starting"] },
-      },
-      { $pull: { players: { steamId: user.steamId } } },
-    );
+    // without leaving. We process each one properly so we never leave an orphaned
+    // lobby behind (stale leaderId -> "Unknown", or an empty lobby).
+    const staleLobbies = await Lobby.find({
+      _id: { $ne: lobby._id },
+      "players.steamId": user.steamId,
+      phase: { $in: ["waiting", "starting"] },
+    });
+    for (const old of staleLobbies) {
+      old.players = old.players.filter((p) => p.steamId !== user.steamId);
+
+      // Empty lobby: just delete it.
+      if (old.players.length === 0) {
+        await Lobby.deleteOne({ _id: old._id });
+        broadcastLobbyUpdate(old.matchId.toString(), { closed: true });
+        continue;
+      }
+
+      // If the leaving player owned this lobby, hand ownership to another player
+      // so it never shows "Unknown".
+      if (old.leaderId === user.steamId) {
+        const newLeader = old.players.find((p) => p.isCaptain) ?? old.players[0];
+        old.leaderId = newLeader.steamId;
+      }
+
+      // Ensure both teams still have captains.
+      ["team1", "team2"].forEach((team) => {
+        if (!old.players.some((p) => p.isCaptain && p.team === team)) {
+          const candidate = old.players.find((p) => p.team === team);
+          if (candidate) candidate.isCaptain = true;
+        }
+      });
+
+      const saveErr = await safeSave(old);
+      if (saveErr) return saveErr;
+      broadcastLobbyUpdate(old.matchId.toString(), old.toObject());
+    }
 
     // Prevent joining if already in another active lobby (ready_check, captain_pick, map_veto, etc.)
     const otherLobby = await Lobby.findOne({
@@ -160,7 +187,8 @@ async function leaveLobby({ lobby, user, matchId }: ActionContext): Promise<Next
   const wasLeader = lobby.leaderId === user.steamId;
   const remainingAfterLeave = lobby.players.filter(p => p.steamId !== user.steamId);
 
-  // Check BEFORE any mutation: if the leaving player is the leader and players remain, block leaving
+  // A leader can't simply abandon a lobby that still has players;
+  // they must transfer ownership first (leave_lobby_and_promote).
   if (wasLeader && remainingAfterLeave.length > 0) {
     return error("You are the lobby leader. Transfer ownership before leaving.", 400);
   }
@@ -176,16 +204,17 @@ async function leaveLobby({ lobby, user, matchId }: ActionContext): Promise<Next
     }
   });
 
-  const saveErr2 = await safeSave(lobby);
-  if (saveErr2) return saveErr2;
-  broadcastLobbyUpdate(matchId, lobby.toObject());
-
-  // If the leaving player was the leader and no players remain, close the lobby
-  if (wasLeader && lobby.players.length === 0) {
+  // Close the lobby once it's empty, regardless of who the last leaver was.
+  // Otherwise an orphaned lobby with a stale leaderId lingers in the public list.
+  if (lobby.players.length === 0) {
     await Lobby.deleteOne({ matchId });
     broadcastLobbyUpdate(matchId, { closed: true });
     return NextResponse.json({ success: true, closed: true });
   }
+
+  const saveErr2 = await safeSave(lobby);
+  if (saveErr2) return saveErr2;
+  broadcastLobbyUpdate(matchId, lobby.toObject());
 
   return NextResponse.json({ success: true });
 }
