@@ -67,7 +67,7 @@ export function CommunityServerStatus() {
               {server.ping != null && <span className="ml-2">{server.ping}ms</span>}
               <div className="mt-2">
                 <a
-                  href="steam://connect/204.168.157.120:27100"
+                  href="steam://rungameid/730//+connect%20204.168.157.120:27100"
                   className="inline-block rounded-md bg-[var(--accent)] px-3 py-1 text-xs font-bold uppercase tracking-wider text-[var(--accent-contrast)] transition hover:opacity-90"
                 >
                   Connect
