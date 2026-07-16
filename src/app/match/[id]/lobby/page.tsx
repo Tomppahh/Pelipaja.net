@@ -645,7 +645,7 @@ export default function LobbyPage() {
           </code>
           <div className="mt-3 flex items-center gap-3">
             <Button variant="secondary" onClick={() => navigator.clipboard.writeText(connectString)}>Copy</Button>
-            <a href={`steam://connect/${match.connectionIp}:${match.connectionPort}`}>
+            <a href={`steam://rungameid/730//+connect%20${match.connectionIp}:${match.connectionPort}`}>
               <Button>Connect via Steam</Button>
             </a>
           </div>
