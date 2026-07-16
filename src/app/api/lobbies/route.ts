@@ -1,14 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/src/backend/lib/db";
 import Lobby, { LobbyPlayer } from "@/src/models/lobby";
 
-export async function GET(req: NextRequest) {
-  await connectDB();
+const REFRESH_MS = 10_000;
+const controllers = new Set<ReadableStreamDefaultController>();
 
-  const url = new URL(req.url);
-  const page = Math.max(1, parseInt(url.searchParams.get("page") ?? "1", 10));
-  const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get("limit") ?? "20", 10)));
-  const skip = (page - 1) * limit;
+async function fetchLobbies() {
+  await connectDB();
 
   const filter = {
     "settings.isPublic": true,
@@ -16,17 +13,13 @@ export async function GET(req: NextRequest) {
     players: { $ne: [] as LobbyPlayer[] },
   };
 
-  const [lobbies, total] = await Promise.all([
-    Lobby.find(filter)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .select("matchId leaderId settings phase players createdAt")
-      .lean(),
-    Lobby.countDocuments(filter),
-  ]);
+  const lobbies = await Lobby.find(filter)
+    .sort({ createdAt: -1 })
+    .limit(50)
+    .select("matchId leaderId settings phase players createdAt")
+    .lean();
 
-  const result = lobbies.map((lobby) => {
+  return lobbies.map((lobby) => {
     const leader = lobby.players.find((p: { steamId: string }) => p.steamId === lobby.leaderId);
     const playerCount = lobby.players.length;
     const capacity = lobby.settings.teamSize * 2;
@@ -45,9 +38,71 @@ export async function GET(req: NextRequest) {
       createdAt: lobby.createdAt,
     };
   });
+}
 
-  return NextResponse.json({
-    lobbies: result,
-    pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+function broadcast(data: unknown) {
+  const payload = `data: ${JSON.stringify(data)}\n\n`;
+  for (const controller of controllers) {
+    try {
+      controller.enqueue(new TextEncoder().encode(payload));
+    } catch {
+      controllers.delete(controller);
+    }
+  }
+}
+
+let refreshTimer: ReturnType<typeof setInterval> | null = null;
+
+function startRefreshLoop() {
+  if (refreshTimer) return;
+  refreshTimer = setInterval(async () => {
+    if (controllers.size === 0) {
+      if (refreshTimer) {
+        clearInterval(refreshTimer);
+        refreshTimer = null;
+      }
+      return;
+    }
+    try {
+      const lobbies = await fetchLobbies();
+      broadcast({ lobbies });
+    } catch (err) {
+      console.error("Lobbies SSE refresh failed:", err);
+    }
+  }, REFRESH_MS);
+}
+
+export const dynamic = "force-dynamic";
+
+export async function GET() {
+  const encoder = new TextEncoder();
+
+  const stream = new ReadableStream({
+    start(controller) {
+      controllers.add(controller);
+
+      (async () => {
+        try {
+          const lobbies = await fetchLobbies();
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ lobbies })}\n\n`));
+        } catch (err) {
+          console.error("Lobbies SSE initial fetch failed:", err);
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ lobbies: [] })}\n\n`));
+        }
+      })();
+
+      startRefreshLoop();
+    },
+    cancel(controller) {
+      controllers.delete(controller as ReadableStreamDefaultController);
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+    },
   });
 }

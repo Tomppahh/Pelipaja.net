@@ -51,19 +51,19 @@ export default async function Home() {
 			</section>
 
 			<section className='mt-20 w-full max-w-3xl grid gap-6 sm:grid-cols-3'>
-				<div className='rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5'>
+				<div className='xl border border-[var(--border)] bg-[var(--surface)] p-5'>
 					<h2 className='text-base font-semibold text-[var(--foreground)]'>Custom Lobbies</h2>
 					<p className='mt-1 text-sm leading-relaxed text-[var(--muted)]'>
 						Create public or private matches. Captain pick, map veto, and any team size.
 					</p>
 				</div>
-				<div className='rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5'>
+				<div className='xl border border-[var(--border)] bg-[var(--surface)] p-5'>
 					<h2 className='text-base font-semibold text-[var(--foreground)]'>Auto Servers</h2>
 					<p className='mt-1 text-sm leading-relaxed text-[var(--muted)]'>
 						Game servers spin up when you start and shut down when you finish. No setup needed.
 					</p>
 				</div>
-				<div className='rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5'>
+				<div className='xl border border-[var(--border)] bg-[var(--surface)] p-5'>
 					<h2 className='text-base font-semibold text-[var(--foreground)]'>Workshop Maps</h2>
 					<p className='mt-1 text-sm leading-relaxed text-[var(--muted)]'>
 						Play official maps or Steam Workshop maps. Host your own collections.

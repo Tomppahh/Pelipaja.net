@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/src/app/components/ui/card";
 import { Button } from "@/src/app/components/ui/button";
@@ -39,27 +39,24 @@ export default function LobbiesPage() {
       .catch(() => setLoggedIn(false));
   }, []);
 
-  const fetchLobbies = useCallback(async () => {
-    try {
-      const res = await fetch("/api/lobbies");
-      if (res.ok) {
-        const data = await res.json();
-        setLobbies(data?.lobbies ?? []);
-      }
-    } catch {
-      // silent
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    fetchLobbies();
-    const interval = setInterval(fetchLobbies, 10000);
-    return () => clearInterval(interval);
-  }, [fetchLobbies]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+    const es = new EventSource("/api/lobbies");
+    es.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        setLobbies(data.lobbies ?? []);
+      } catch {
+        // silent
+      } finally {
+        setLoading(false);
+      }
+    };
+    es.onerror = () => {
+      // EventSource auto-reconnects; don't leave the UI stuck on "Loading…"
+      setLoading(false);
+    };
+    return () => es.close();
+  }, []);
 
   async function joinLobby(matchId: string, password?: string) {
     setJoining(true);
@@ -133,7 +130,7 @@ export default function LobbiesPage() {
           {lobbies.map((lobby) => (
             <article
               key={lobby.matchId}
-              className="rounded-xl border border-[var(--border)] bg-[var(--surface)]/70 p-4 shadow-md transition hover:bg-[var(--surface-hover)]/70 hover:shadow-lg sm:p-5"
+              className="xl border border-[var(--border)] bg-[var(--surface)]/70 p-4 shadow-md transition hover:bg-[var(--surface-hover)]/70 hover:shadow-lg sm:p-5"
             >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0 flex-1">

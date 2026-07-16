@@ -85,7 +85,7 @@ export default function CreateCS2MatchPage() {
       {authChecked && !loggedIn ? (
         <div className="flex flex-col items-center gap-4 py-16">
           <h1 className="text-2xl font-bold text-[var(--foreground)]">Log in required</h1>
-          <a href="/api/auth/steam" className="rounded-lg bg-[var(--accent)] px-6 py-2.5 font-semibold text-[var(--accent-contrast)] transition hover:brightness-110">
+          <a href="/api/auth/steam" className="lg bg-[var(--accent)] px-6 py-2.5 font-semibold text-[var(--accent-contrast)] transition hover:brightness-110">
             Log in with Steam
           </a>
         </div>
