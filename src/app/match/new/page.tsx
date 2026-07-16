@@ -13,7 +13,7 @@ export default async function CreateMatchPage() {
 
   return (
     <main className="mx-auto flex min-h-[calc(100vh-88px)] w-full max-w-3xl items-center justify-center px-4 py-8 sm:px-6">
-      <section className="w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 p-8 shadow-2xl backdrop-blur">
+      <section className="w-full 2xl border border-[var(--border)] bg-[var(--surface)]/80 p-8 shadow-2xl backdrop-blur">
         <h1 className="font-display text-3xl font-bold tracking-tight text-[var(--foreground)]">Create Match</h1>
         <ServerCounter />
         <p className="mt-2 text-[var(--muted)]">Select a game</p>

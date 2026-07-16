@@ -163,7 +163,7 @@ export default function AdminPage() {
 
   return (
     <main className="min-h-screen bg-[var(--background)] p-4 sm:p-6">
-      <section className="mx-auto max-w-5xl rounded-2xl border border-[var(--border)] bg-[var(--surface)]/90 p-5 shadow-2xl backdrop-blur sm:p-8">
+      <section className="mx-auto max-w-5xl 2xl border border-[var(--border)] bg-[var(--surface)]/90 p-5 shadow-2xl backdrop-blur sm:p-8">
         <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <PageTitle className="text-3xl sm:text-4xl">Admin Panel</PageTitle>

@@ -836,7 +836,7 @@ export default function LobbyPage() {
                   onChange={e => setChatDraft(e.target.value)}
                   maxLength={200} rows={2}
                   placeholder="Message"
-                  className="min-h-10 min-w-0 flex-1 resize-none rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                  className="min-h-10 min-w-0 flex-1 resize-none xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
                 />
                 <button
                   type="submit"
