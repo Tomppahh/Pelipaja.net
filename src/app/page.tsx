@@ -32,11 +32,12 @@ export default async function Home() {
 		<main className='flex min-h-screen flex-col items-center justify-center px-4'>
 			<section className='text-center max-w-2xl'>
 				<h1 className='font-display text-5xl sm:text-6xl font-bold text-[var(--foreground)]'>
-					Pelipaja
+					Pelipaja.net
 				</h1>
 				<p className='mt-4 text-lg text-[var(--muted)]'>
 					Competitive CS2 matchmaking with your friends.
 					Create lobbies, pick maps, and play — all automated.
+					And completely free!
 				</p>
 
 				<div className='mt-8 flex justify-center'>
@@ -50,7 +51,7 @@ export default async function Home() {
 				</div>
 			</section>
 
-			<section className='mt-20 w-full max-w-3xl grid gap-6 sm:grid-cols-3'>
+			<section className='mt-20 w-full max-w-5xl grid gap-6 sm:grid-cols-4'>
 				<div className='xl border border-[var(--border)] bg-[var(--surface)] p-5'>
 					<h2 className='text-base font-semibold text-[var(--foreground)]'>Custom Lobbies</h2>
 					<p className='mt-1 text-sm leading-relaxed text-[var(--muted)]'>
@@ -67,6 +68,11 @@ export default async function Home() {
 					<h2 className='text-base font-semibold text-[var(--foreground)]'>Workshop Maps</h2>
 					<p className='mt-1 text-sm leading-relaxed text-[var(--muted)]'>
 						Play official maps or Steam Workshop maps. Host your own collections.
+					</p>
+				</div><div className='xl border border-[var(--border)] bg-[var(--surface)] p-5'>
+					<h2 className='text-base font-semibold text-[var(--foreground)]'>See how you play</h2>
+					<p className='mt-1 text-sm leading-relaxed text-[var(--muted)]'>
+						Match history & Personal Statistics generated from public 5v5 games.
 					</p>
 				</div>
 			</section>
