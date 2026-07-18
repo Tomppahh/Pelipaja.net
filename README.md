@@ -50,7 +50,7 @@ A community CS2 5v5 matchmaking platform developed as part of a bachelor's thesi
 ## Development Setup
 
 ### Prerequisites
-- Node.js 20+
+- Node.js 22+
 - npm
 - MongoDB (local or Atlas)
 - Docker (for game server testing, optional)
