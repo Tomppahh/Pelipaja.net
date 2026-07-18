@@ -68,4 +68,5 @@ src/app/api/dev/
 
 
 #dev-ready folder
-src/app/api/matches/**/dev-ready/
+src/app/api/matches/**/dev-ready/.backup-cloudflare/
+.backup-full/
